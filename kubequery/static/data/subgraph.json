@@ -1,0 +1,122 @@
+{
+    "nodes": [
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:17",
+            "name": "clever-tarek-w1",
+            "type": "K8sNode"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:27",
+            "name": "clever-tarek-w2",
+            "type": "K8sNode"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:32",
+            "name": "clever-tarek-w3",
+            "type": "K8sNode"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:55",
+            "name": "clever-tarek-m1",
+            "type": "K8sNode"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:48",
+            "name": "nginx-deployment-69dbb88fdb-7grkt",
+            "type": "Pod"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:52",
+            "name": "nginx-deployment-69dbb88fdb-wswph",
+            "type": "Pod"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:49",
+            "name": "nginx",
+            "type": "Container"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:53",
+            "name": "nginx",
+            "type": "Container"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:23",
+            "name": "docker.io/library/nginx:latest",
+            "type": "Image"
+        },
+        {
+            "id": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:38",
+            "name": "docker.io/library/nginx:latest",
+            "type": "Image"
+        }
+    ],
+    "edges": [
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:101",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:53",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:23",
+            "label": "INSTANTIATES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:87",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:49",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:23",
+            "label": "INSTANTIATES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:42",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:27",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:23",
+            "label": "STORES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:17",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:17",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:23",
+            "label": "STORES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:102",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:53",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:38",
+            "label": "INSTANTIATES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:88",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:49",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:38",
+            "label": "INSTANTIATES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:66",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:32",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:38",
+            "label": "STORES_IMAGE"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:86",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:48",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:17",
+            "label": "SCHEDULED_ON"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:100",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:52",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:27",
+            "label": "SCHEDULED_ON"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:89",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:48",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:49",
+            "label": "RUNS_CONTAINER"
+        },
+        {
+            "id": "5:b4c21e56-8880-4a49-b527-2aeaf1b19c92:103",
+            "start": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:52",
+            "end": "4:b4c21e56-8880-4a49-b527-2aeaf1b19c92:53",
+            "label": "RUNS_CONTAINER"
+        }
+    ]
+}

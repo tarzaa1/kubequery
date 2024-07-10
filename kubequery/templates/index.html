@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Orb</title>
+  <script src="https://unpkg.com/@memgraph/orb@0.0.2/dist/browser/orb.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    #graph {
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+	<div id="graph"></div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

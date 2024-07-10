@@ -1,0 +1,3 @@
+Flask==3.0.3
+# Editable Git install with no remote (kubequery==0.1)
+-e .
