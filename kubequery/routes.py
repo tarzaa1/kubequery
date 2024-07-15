@@ -1,13 +1,51 @@
-from flask import render_template
-from flask import Flask
-from kubequery import queries
+from flask import Flask, render_template, jsonify
+from kubequery.utils.graph import Neo4j
+from kubequery.queries import subgraph
 
 app = Flask(__name__)
+neo4j = Neo4j()
 
 @app.route("/", methods=['GET'])
 def index():
+    neo4j.execute_read(subgraph)
     return render_template('index.html')
 
-@app.route("/clusters")
-def get_clusters():
-    return queries.get_clusters()
+@app.route("/clusters", methods=['GET'])
+def list_clusters():
+    """ Retrieve all available clusters
+
+    Response:
+    [
+        {"clusterId": "cluster1", "name": "Cluster 1"},
+        {"clusterId": "cluster2", "name": "Cluster 2"}
+    ]
+    """
+    clusters = []
+    return jsonify(clusters)
+
+@app.route("/clusters/<string:clusterId>/nodes", methods=['GET'])
+def list_nodes(clusterId):
+    """ Retreive all nodes in a specified cluster
+
+    Response:
+    [
+        {"nodeId": "node1", "hostname": "node1-host", "status": "Ready"},
+        {"nodeId": "node2", "hostname": "node2-host", "status": "NotReady"}
+    ]
+    """
+    nodes = []
+    return jsonify(nodes)
+
+@app.route("/clusters/<string:clusterId>/<string:nodeId>/pods")
+def list_pods_on_node(clusterId, nodeId):
+    """ Retreive all pods scheduled on a specified node
+
+    Response:
+    [
+        {"podId": "pod1", "name": "pod1", "status": "Running"},
+        {"podId": "pod2", "name": "pod2", "status": "Pending"}
+    ]
+    """
+    pods = []
+    return jsonify(pods)
+
