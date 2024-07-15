@@ -3,12 +3,12 @@ from neo4j import GraphDatabase
 
 
 class Neo4j(GraphDB):
-    def __init__(self, URI, AUTH) -> None:
-        self.driver = self.create_connection(URI, AUTH)
-        self.driver.verify_connectivity()
+    def __init__(self) -> None:
+        self.driver = None
 
-    def create_connection(self, URI, AUTH):
-        return GraphDatabase.driver(URI, auth=AUTH)
+    def connect(self, URI, AUTH):
+        self.driver = GraphDatabase.driver(URI, auth=AUTH)
+        self.driver.verify_connectivity()
 
     def get_session(self):
         return self.driver.session()
@@ -33,6 +33,3 @@ class Neo4j(GraphDB):
 
     def close(self):
         self.driver.close()
-
-    def __del__(self):
-        self.close()
