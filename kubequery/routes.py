@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify
 from kubequery.utils.graph import Neo4j
-from kubequery.queries import subgraph, distinct_labels, clusters_info
+from kubequery.queries import subgraph, distinct_labels, clusters_info, nodes_info
 
 app = Flask(__name__)
 neo4j = Neo4j()
@@ -38,7 +38,7 @@ def list_nodes(clusterId):
         {"nodeId": "node2", "hostname": "node2-host", "status": "NotReady"}
     ]
     """
-    nodes = []
+    nodes = neo4j.execute_read(nodes_info, clusterId)
     return jsonify(nodes)
 
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/pods")
