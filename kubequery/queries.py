@@ -6,21 +6,19 @@ def count(tx, type):
         RETURN count(nodes)
         """
     result = tx.run(query)
-    print(f"{type}s: {result.single().data()['count(nodes)']}")
+    return result.single().data()['count(nodes)']
 
-def stats(tx):
-    print('\n')
-    count(tx, 'K8sNode')
-    count(tx, 'Pod')
-    count(tx, 'Deployment')
-    count(tx, 'ReplicaSet')
-    count(tx, 'Label')
-    count(tx, 'Annotation')
-    count(tx, 'Image')
-    count(tx, 'Container')
-    count(tx, 'Taint')
-    count(tx, 'Service')
-    count(tx, 'ConfigMap')
+def distinct_labels(tx):
+    query = f"""
+            MATCH (n) 
+            RETURN distinct labels(n), count(*)
+            """
+    result = tx.run(query)
+    stats_dict = {}
+    for record in result:
+        record_data = record.data()
+        stats_dict[record_data.get('labels(n)')[0]] = record_data.get('count(*)')
+    return stats_dict
 
 def subgraph(tx):
 
