@@ -46,6 +46,19 @@ def nodes_info(tx, cluster_id : str):
         node_lst.append(record_data.get('nodes'))
     return node_lst
 
+def pods_info(tx, cluster_id : str, node_id : str):
+    query = f"""
+        MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}" AND node.id = "{node_id}"
+        RETURN pods
+        """
+    result = tx.run(query)
+    pod_lst = []
+    for record in result:
+        record_data = record.data()
+        pod_lst.append(record_data.get('pods'))
+    return pod_lst
+
 def subgraph(tx):
 
     nodes = []
