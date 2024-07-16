@@ -1,5 +1,4 @@
 from kubequery.routes import app, neo4j
-from kubequery.utils.graph import Neo4j
 
 if __name__ == '__main__':
     URI = "bolt://localhost:7687"
