@@ -30,9 +30,21 @@ def clusters_info(tx):
     cluster_lst = []
     for record in result:
         record_data = record.data()
-        print(record_data)
         cluster_lst.append(record_data.get('n'))
     return cluster_lst
+
+def nodes_info(tx, cluster_id : str):
+    query = f"""
+        MATCH (nodes:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}"
+        RETURN nodes
+        """
+    result = tx.run(query)
+    node_lst = []
+    for record in result:
+        record_data = record.data()
+        node_lst.append(record_data.get('nodes'))
+    return node_lst
 
 def subgraph(tx):
 
