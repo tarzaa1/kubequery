@@ -14,6 +14,7 @@ def distinct_labels(tx):
             RETURN distinct labels(n), count(*)
             """
     result = tx.run(query)
+    # TODO error handeling
     stats_dict = {}
     for record in result:
         record_data = record.data()
