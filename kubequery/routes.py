@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify
 from kubequery.utils.graph import Neo4j
-from kubequery.queries import subgraph, distinct_labels
+from kubequery.queries import subgraph, distinct_labels, clusters_info
 
 app = Flask(__name__)
 neo4j = Neo4j()
@@ -20,7 +20,7 @@ def list_clusters():
         {"clusterId": "cluster2", "name": "Cluster 2"}
     ]
     """
-    clusters = []
+    clusters = neo4j.execute_read(clusters_info)
     return jsonify(clusters)
 
 @app.route("/stats", methods=['GET'])
