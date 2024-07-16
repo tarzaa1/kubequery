@@ -20,6 +20,19 @@ def distinct_labels(tx):
         stats_dict[record_data.get('labels(n)')[0]] = record_data.get('count(*)')
     return stats_dict
 
+def clusters_info(tx):
+    query = f"""
+            MATCH (n:Cluster) 
+            RETURN n
+            """
+    result = tx.run(query)
+    cluster_lst = []
+    for record in result:
+        record_data = record.data()
+        print(record_data)
+        cluster_lst.append(record_data.get('n'))
+    return cluster_lst
+
 def subgraph(tx):
 
     nodes = []
