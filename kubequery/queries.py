@@ -6,21 +6,71 @@ def count(tx, type):
         RETURN count(nodes)
         """
     result = tx.run(query)
-    print(f"{type}s: {result.single().data()['count(nodes)']}")
+    return result.single().data()['count(nodes)']
 
-def stats(tx):
-    print('\n')
-    count(tx, 'K8sNode')
-    count(tx, 'Pod')
-    count(tx, 'Deployment')
-    count(tx, 'ReplicaSet')
-    count(tx, 'Label')
-    count(tx, 'Annotation')
-    count(tx, 'Image')
-    count(tx, 'Container')
-    count(tx, 'Taint')
-    count(tx, 'Service')
-    count(tx, 'ConfigMap')
+def distinct_labels(tx):
+    query = f"""
+            MATCH (n) 
+            RETURN distinct labels(n), count(*)
+            """
+    result = tx.run(query)
+    # TODO error handeling
+    stats_dict = {}
+    for record in result:
+        record_data = record.data()
+        stats_dict[record_data.get('labels(n)')[0]] = record_data.get('count(*)')
+    return stats_dict
+
+def clusters_info(tx):
+    query = f"""
+            MATCH (n:Cluster) 
+            RETURN n
+            """
+    result = tx.run(query)
+    cluster_lst = []
+    for record in result:
+        record_data = record.data()
+        cluster_lst.append(record_data.get('n'))
+    return cluster_lst
+
+def nodes_info(tx, cluster_id : str):
+    query = f"""
+        MATCH (nodes:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}"
+        RETURN nodes
+        """
+    result = tx.run(query)
+    node_lst = []
+    for record in result:
+        record_data = record.data()
+        node_lst.append(record_data.get('nodes'))
+    return node_lst
+
+def pods_info(tx, cluster_id : str, node_id : str):
+    query = f"""
+        MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}" AND node.id = "{node_id}"
+        RETURN pods
+        """
+    result = tx.run(query)
+    pod_lst = []
+    for record in result:
+        record_data = record.data()
+        pod_lst.append(record_data.get('pods'))
+    return pod_lst
+
+def pods_info_by_cluster(tx, cluster_id : str):
+    query = f"""
+        MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}"
+        RETURN pods
+        """
+    result = tx.run(query)
+    pod_lst = []
+    for record in result:
+        record_data = record.data()
+        pod_lst.append(record_data.get('pods'))
+    return pod_lst
 
 def subgraph(tx):
 

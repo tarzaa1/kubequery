@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify
 from kubequery.utils.graph import Neo4j
-from kubequery.queries import subgraph
+from kubequery.queries import *
 
 app = Flask(__name__)
 neo4j = Neo4j()
@@ -20,8 +20,13 @@ def list_clusters():
         {"clusterId": "cluster2", "name": "Cluster 2"}
     ]
     """
-    clusters = []
+    clusters = neo4j.execute_read(clusters_info)
     return jsonify(clusters)
+
+@app.route("/stats", methods=['GET'])
+def list_stats():
+    stats = neo4j.execute_read(distinct_labels)
+    return jsonify(stats)
 
 @app.route("/clusters/<string:clusterId>/nodes", methods=['GET'])
 def list_nodes(clusterId):
@@ -33,7 +38,20 @@ def list_nodes(clusterId):
         {"nodeId": "node2", "hostname": "node2-host", "status": "NotReady"}
     ]
     """
-    nodes = []
+    nodes = neo4j.execute_read(nodes_info, clusterId)
+    return jsonify(nodes)
+
+@app.route("/clusters/<string:clusterId>/pods", methods=['GET'])
+def list_pods_on_cluster(clusterId):
+    """ Retreive all pods in a specified cluster
+
+    Response:
+    [
+        {"podId": "pod1", "name": "pod1", "status": "Running"},
+        {"podId": "pod2", "name": "pod2", "status": "Pending"}
+    ]
+    """
+    nodes = neo4j.execute_read(pods_info_by_cluster, clusterId)
     return jsonify(nodes)
 
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/pods")
@@ -46,6 +64,6 @@ def list_pods_on_node(clusterId, nodeId):
         {"podId": "pod2", "name": "pod2", "status": "Pending"}
     ]
     """
-    pods = []
+    pods = neo4j.execute_read(pods_info, clusterId, nodeId)
     return jsonify(pods)
 
