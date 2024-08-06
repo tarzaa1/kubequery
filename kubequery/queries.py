@@ -79,6 +79,8 @@ def node_resources_info(tx, cluster_id: str, node_id: str):
         request_memory_lst.append(pod_data.get('request_memory'))
         limit_cpu_lst.append(pod_data.get('limit_cpu'))
         limit_memory_lst.append(pod_data.get('limit_memory'))
+    if not node_data:
+        return {}
     request_cpu =  _sum_string_list(request_cpu_lst)
     request_memory = _sum_string_list(request_memory_lst)
     limit_cpu = _sum_string_list(limit_cpu_lst)
@@ -86,10 +88,10 @@ def node_resources_info(tx, cluster_id: str, node_id: str):
     resources = {}
     resources["requests"] = {}
     resources["limits"] = {}
-    resources["requests"]["cpu"] = _get_percentage(request_cpu, node_data["allocatable_cpu"] )
-    resources["requests"]["memory"] = _get_percentage(request_memory, node_data["allocatable_memory"] )
-    resources["limits"]["cpu"] = _get_percentage(limit_cpu, node_data["allocatable_cpu"] )
-    resources["limits"]["memory"] = _get_percentage(limit_memory, node_data["allocatable_memory"])
+    resources["requests"]["cpu"] = _get_percentage(request_cpu, node_data.get("allocatable_cpu", "") )
+    resources["requests"]["memory"] = _get_percentage(request_memory, node_data.get("allocatable_memory", "") )
+    resources["limits"]["cpu"] = _get_percentage(limit_cpu, node_data.get("allocatable_cpu", "") )
+    resources["limits"]["memory"] = _get_percentage(limit_memory, node_data.get("allocatable_memory", ""))
     return resources
 
 def pods_info_by_cluster(tx, cluster_id : str):
