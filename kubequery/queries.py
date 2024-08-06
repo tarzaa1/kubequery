@@ -211,10 +211,7 @@ def _sum_string_list(str_list):
     return f"{total}{suffix}"
 
 def _get_percentage(a1, a2):
-    print(a1)
-    print(a2)
     if not a1 or not a2:
-        print(1)
         return "0%"
     num1 = num2 = suffix1 = suffix2 = ""
     for char in a1:
