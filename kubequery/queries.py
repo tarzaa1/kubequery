@@ -81,10 +81,10 @@ def node_resources_info(tx, cluster_id: str, node_id: str):
         limit_memory_lst.append(pod_data.get('limit_memory'))
     if not node_data:
         return {}
-    request_cpu =  _sum_string_list(request_cpu_lst)
-    request_memory = _sum_string_list(request_memory_lst)
-    limit_cpu = _sum_string_list(limit_cpu_lst)
-    limit_memory = _sum_string_list(limit_memory_lst)
+    request_cpu =  _sum_string_list(request_cpu_lst, "0m")
+    request_memory = _sum_string_list(request_memory_lst, "0Mi")
+    limit_cpu = _sum_string_list(limit_cpu_lst, "0m")
+    limit_memory = _sum_string_list(limit_memory_lst, "0Mi")
     resources = {}
     resources["requests"] = {"cpu": request_cpu,
                              "memory": request_memory,
@@ -199,25 +199,22 @@ def get_edges(tx, start, end):
         """
     return tx.run(query)
 
-def _sum_string_list(str_list):
-    if not str_list:
-        return ""
+def _sum_string_list(str_list, default_value):
     total = 0
-    suffix = None
+    suffix = ""
     for item in str_list:
-        # break and return "" if contains None
         if not item:
-            return ""
-        # Separate numeric value and suffix
+            break
         num = ""
         for char in item:
             if char.isdigit():
                 num += char
             else:
-                suffix = item[len(num):]
+                if not suffix:
+                    suffix = item[len(num):]
                 break
         total += int(num)
-    return f"{total}{suffix}"
+    return f"{total}{suffix}" if total != 0 else default_value
 
 def _get_percentage(a1, a2):
     if not a1 or not a2:
@@ -242,5 +239,5 @@ def _get_percentage(a1, a2):
     elif suffix1 == "m" and suffix2 == "":
         result =  (num1 / num2 / 1000) * 100
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Calculation of args type not implemented.")
     return f"{result:.2f}%"
