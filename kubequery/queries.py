@@ -86,12 +86,19 @@ def node_resources_info(tx, cluster_id: str, node_id: str):
     limit_cpu = _sum_string_list(limit_cpu_lst)
     limit_memory = _sum_string_list(limit_memory_lst)
     resources = {}
-    resources["requests"] = {}
-    resources["limits"] = {}
-    resources["requests"]["cpu"] = _get_percentage(request_cpu, node_data.get("allocatable_cpu", "") )
-    resources["requests"]["memory"] = _get_percentage(request_memory, node_data.get("allocatable_memory", "") )
-    resources["limits"]["cpu"] = _get_percentage(limit_cpu, node_data.get("allocatable_cpu", "") )
-    resources["limits"]["memory"] = _get_percentage(limit_memory, node_data.get("allocatable_memory", ""))
+    resources["requests"] = {"cpu": request_cpu,
+                             "memory": request_memory,
+                             "cpu_percentage": _get_percentage(request_cpu, node_data.get("allocatable_cpu", "") ),
+                             "memory_percentage": _get_percentage(request_memory, node_data.get("allocatable_memory", "") )
+                             }
+    resources["limits"] = {"cpu": limit_cpu,
+                           "memory": limit_memory,
+                           "cpu_percentage": _get_percentage(limit_cpu, node_data.get("allocatable_cpu", "") ),
+                           "memory_percentage": _get_percentage(limit_memory, node_data.get("allocatable_memory", ""))
+                           }
+    resources["allocatable"] = {k: node_data["allocatable_" + k] 
+                                for k in ["cpu", "memory", "ephemeral_storage"] 
+                                if ("allocatable_" + k) in node_data}
     return resources
 
 def pods_info_by_cluster(tx, cluster_id : str):
