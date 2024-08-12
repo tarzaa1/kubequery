@@ -59,6 +59,48 @@ def pods_info(tx, cluster_id : str, node_id : str):
         pod_lst.append(record_data.get('pods'))
     return pod_lst
 
+def node_resources_info(tx, cluster_id: str, node_id: str):
+    query = f"""
+        MATCH (ps:Pod) -[SCHEDULED_ON]-> (n:K8sNode) -[BELONGS_TO]-> (c:Cluster)
+        WHERE c.id = "{cluster_id}" AND n.id = "{node_id}"
+        RETURN ps, n
+        """
+    request_cpu_lst = []
+    request_memory_lst = []
+    limit_cpu_lst = []
+    limit_memory_lst = []
+    node_data = {}
+    result = tx.run(query)
+    for record in result:
+        pod_data = record.data()["ps"]
+        if not node_data:
+            node_data = record.data()["n"]
+        request_cpu_lst.append(pod_data.get('request_cpu'))
+        request_memory_lst.append(pod_data.get('request_memory'))
+        limit_cpu_lst.append(pod_data.get('limit_cpu'))
+        limit_memory_lst.append(pod_data.get('limit_memory'))
+    if not node_data:
+        return {}
+    request_cpu =  _sum_string_list(request_cpu_lst, "0m")
+    request_memory = _sum_string_list(request_memory_lst, "0Mi")
+    limit_cpu = _sum_string_list(limit_cpu_lst, "0m")
+    limit_memory = _sum_string_list(limit_memory_lst, "0Mi")
+    resources = {}
+    resources["requests"] = {"cpu": request_cpu,
+                             "memory": request_memory,
+                             "cpu_percentage": _get_percentage(request_cpu, node_data.get("allocatable_cpu", "") ),
+                             "memory_percentage": _get_percentage(request_memory, node_data.get("allocatable_memory", "") )
+                             }
+    resources["limits"] = {"cpu": limit_cpu,
+                           "memory": limit_memory,
+                           "cpu_percentage": _get_percentage(limit_cpu, node_data.get("allocatable_cpu", "") ),
+                           "memory_percentage": _get_percentage(limit_memory, node_data.get("allocatable_memory", ""))
+                           }
+    resources["allocatable"] = {k: node_data["allocatable_" + k] 
+                                for k in ["cpu", "memory", "ephemeral_storage"] 
+                                if ("allocatable_" + k) in node_data}
+    return resources
+
 def pods_info_by_cluster(tx, cluster_id : str):
     query = f"""
         MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
@@ -156,3 +198,46 @@ def get_edges(tx, start, end):
         RETURN r
         """
     return tx.run(query)
+
+def _sum_string_list(str_list, default_value):
+    total = 0
+    suffix = ""
+    for item in str_list:
+        if not item:
+            break
+        num = ""
+        for char in item:
+            if char.isdigit():
+                num += char
+            else:
+                if not suffix:
+                    suffix = item[len(num):]
+                break
+        total += int(num)
+    return f"{total}{suffix}" if total != 0 else default_value
+
+def _get_percentage(a1, a2):
+    if not a1 or not a2:
+        return "0%"
+    num1 = num2 = suffix1 = suffix2 = ""
+    for char in a1:
+        if char.isdigit():
+            num1 += char
+        else:
+            suffix1 = a1[len(num1):]
+            break
+    for char in a2:
+        if char.isdigit():
+            num2 += char
+        else:
+            suffix2 = a2[len(num2):]
+            break
+    num1 = int(num1)
+    num2 = int(num2)
+    if suffix1 == "Mi" and suffix2 == "Ki":
+        result = (num1 * 1024 / num2) * 100
+    elif suffix1 == "m" and suffix2 == "":
+        result =  (num1 / num2 / 1000) * 100
+    else:
+        raise NotImplementedError("Calculation of args type not implemented.")
+    return f"{result:.2f}%"
