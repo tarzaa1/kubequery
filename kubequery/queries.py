@@ -1,4 +1,6 @@
 import json
+import re
+
 
 def count(tx, type):
     query = f"""
@@ -7,6 +9,7 @@ def count(tx, type):
         """
     result = tx.run(query)
     return result.single().data()['count(nodes)']
+
 
 def distinct_labels(tx):
     query = f"""
@@ -18,8 +21,10 @@ def distinct_labels(tx):
     stats_dict = {}
     for record in result:
         record_data = record.data()
-        stats_dict[record_data.get('labels(n)')[0]] = record_data.get('count(*)')
+        stats_dict[record_data.get('labels(n)')[0]
+                   ] = record_data.get('count(*)')
     return stats_dict
+
 
 def clusters_info(tx):
     query = f"""
@@ -33,7 +38,8 @@ def clusters_info(tx):
         cluster_lst.append(record_data.get('n'))
     return cluster_lst
 
-def nodes_info(tx, cluster_id : str):
+
+def nodes_info(tx, cluster_id: str):
     query = f"""
         MATCH (nodes:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
         WHERE cluster.id = "{cluster_id}"
@@ -46,7 +52,8 @@ def nodes_info(tx, cluster_id : str):
         node_lst.append(record_data.get('nodes'))
     return node_lst
 
-def pods_info(tx, cluster_id : str, node_id : str):
+
+def pods_info(tx, cluster_id: str, node_id: str):
     query = f"""
         MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
         WHERE cluster.id = "{cluster_id}" AND node.id = "{node_id}"
@@ -59,49 +66,37 @@ def pods_info(tx, cluster_id : str, node_id : str):
         pod_lst.append(record_data.get('pods'))
     return pod_lst
 
-def node_resources_info(tx, cluster_id: str, node_id: str):
+
+def node_resources(tx, cluster_id: str, node_id: str):
     query = f"""
-        MATCH (ps:Pod) -[SCHEDULED_ON]-> (n:K8sNode) -[BELONGS_TO]-> (c:Cluster)
-        WHERE c.id = "{cluster_id}" AND n.id = "{node_id}"
-        RETURN ps, n
+        MATCH (pod:Pod)-[:SCHEDULED_ON]->(node:K8sNode)-[BELONGS_TO]->(cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}" AND node.id = "{node_id}"
+        MATCH (pod)-[:RUNS_CONTAINER]->(c:Container)
+        RETURN node, sum(c.request_cpu) AS requestedCPU, sum(c.request_memory) AS requestedMemory, sum(c.limit_cpu) AS limitCPU, sum(c.limit_memory) AS limitMemory
         """
-    request_cpu_lst = []
-    request_memory_lst = []
-    limit_cpu_lst = []
-    limit_memory_lst = []
-    node_data = {}
     result = tx.run(query)
-    for record in result:
-        pod_data = record.data()["ps"]
-        if not node_data:
-            node_data = record.data()["n"]
-        request_cpu_lst.append(pod_data.get('request_cpu'))
-        request_memory_lst.append(pod_data.get('request_memory'))
-        limit_cpu_lst.append(pod_data.get('limit_cpu'))
-        limit_memory_lst.append(pod_data.get('limit_memory'))
-    if not node_data:
-        return {}
-    request_cpu =  _sum_string_list(request_cpu_lst, "0m")
-    request_memory = _sum_string_list(request_memory_lst, "0Mi")
-    limit_cpu = _sum_string_list(limit_cpu_lst, "0m")
-    limit_memory = _sum_string_list(limit_memory_lst, "0Mi")
+    data = result.single().data()
+    node_data = data["node"]
     resources = {}
-    resources["requests"] = {"cpu": request_cpu,
-                             "memory": request_memory,
-                             "cpu_percentage": _get_percentage(request_cpu, node_data.get("allocatable_cpu", "") ),
-                             "memory_percentage": _get_percentage(request_memory, node_data.get("allocatable_memory", "") )
+    resources["name"] = node_data["hostname"]
+    resources["requests"] = {"cpu": data["requestedCPU"]/1000,
+                             "memory": data["requestedMemory"],
                              }
-    resources["limits"] = {"cpu": limit_cpu,
-                           "memory": limit_memory,
-                           "cpu_percentage": _get_percentage(limit_cpu, node_data.get("allocatable_cpu", "") ),
-                           "memory_percentage": _get_percentage(limit_memory, node_data.get("allocatable_memory", ""))
+    resources["limits"] = {"cpu": data["limitCPU"]/1000,
+                           "memory": data["limitMemory"],
                            }
-    resources["allocatable"] = {k: node_data["allocatable_" + k] 
-                                for k in ["cpu", "memory", "ephemeral_storage"] 
-                                if ("allocatable_" + k) in node_data}
+    resources["allocatable"] = {"cpu": node_data["allocatable_cpu"],
+                                "memory": extract_number(node_data["allocatable_memory"])/1000,
+                                "ephemeral_storage": node_data["allocatable_ephemeral_storage"]
+                                }
+    resources["utilization"] = {
+        "cpu": extract_number(node_data["usage_cpu"])/100000000,
+        "memory": extract_number(node_data["usage_memory"])/1000
+    }
     return resources
 
-def pods_info_by_cluster(tx, cluster_id : str):
+
+def pods_info_by_cluster(tx, cluster_id: str):
     query = f"""
         MATCH (pods:Pod) -[SCHEDULED_ON]-> (node:K8sNode) -[BELONGS_TO]-> (cluster:Cluster)
         WHERE cluster.id = "{cluster_id}"
@@ -114,6 +109,7 @@ def pods_info_by_cluster(tx, cluster_id : str):
         pod_lst.append(record_data.get('pods'))
     return pod_lst
 
+
 def subgraph(tx):
 
     nodes = []
@@ -124,58 +120,67 @@ def subgraph(tx):
     for record in result:
         node = record['node']
         if node.element_id not in ids:
-            nodes.append({'id': node.element_id, 'name': node['name'], 'type': 'K8sNode'})
+            nodes.append(
+                {'id': node.element_id, 'name': node['name'], 'type': 'K8sNode'})
             ids.append(node.element_id)
 
     result = get_nodes(tx, 'Pod')
     for record in result:
         node = record['node']
         if node.element_id not in ids:
-            nodes.append({'id': node.element_id, 'name': node['name'], 'type': 'Pod'})
+            nodes.append(
+                {'id': node.element_id, 'name': node['name'], 'type': 'Pod'})
             ids.append(node.element_id)
 
     result = get_nodes(tx, 'Container')
     for record in result:
         node = record['node']
         if node.element_id not in ids:
-            nodes.append({'id': node.element_id, 'name': node['name'], 'type': 'Container'})
+            nodes.append(
+                {'id': node.element_id, 'name': node['name'], 'type': 'Container'})
             ids.append(node.element_id)
 
     result = get_images(tx)
     for record in result:
         node = record['node']
         if node.element_id not in ids:
-            nodes.append({'id': node.element_id, 'name': node['name'], 'type': 'Image'})
+            nodes.append(
+                {'id': node.element_id, 'name': node['name'], 'type': 'Image'})
             ids.append(node.element_id)
         r = record['r']
         if r.element_id not in ids:
-            edges.append({'id': r.element_id, 'start': r.start_node.element_id, 'end':r.end_node.element_id, 'label': r.type})
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
             ids.append(r.element_id)
-    
+
     result = get_edges(tx, "K8sNode", "Pod")
     for record in result:
         r = record['r']
         if r.element_id not in ids:
-            edges.append({'id': r.element_id, 'start': r.start_node.element_id, 'end':r.end_node.element_id, 'label': r.type})
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
             ids.append(r.element_id)
 
     result = get_edges(tx, "Container", "Pod")
     for record in result:
         r = record['r']
         if r.element_id not in ids:
-            edges.append({'id': r.element_id, 'start': r.start_node.element_id, 'end':r.end_node.element_id, 'label': r.type})
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
             ids.append(r.element_id)
 
     result = get_edges(tx, "Container", "Image")
     for record in result:
         r = record['r']
         if r.element_id not in ids:
-            edges.append({'id': r.element_id, 'start': r.start_node.element_id, 'end':r.end_node.element_id, 'label': r.type})
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
             ids.append(r.element_id)
 
     subgraph = {'nodes': nodes, 'edges': edges}
     with open('kubequery/static/data/subgraph.json', 'w') as fp:
         json.dump(subgraph, fp, indent=4)
+
 
 def get_nodes(tx, type):
     query = f"""
@@ -183,6 +188,7 @@ def get_nodes(tx, type):
         RETURN node
         """
     return tx.run(query)
+
 
 def get_images(tx):
     query = f"""
@@ -192,6 +198,7 @@ def get_images(tx):
         """
     return tx.run(query)
 
+
 def get_edges(tx, start, end):
     query = f"""
         MATCH (:{start})-[r]-(:{end})
@@ -199,45 +206,42 @@ def get_edges(tx, start, end):
         """
     return tx.run(query)
 
-def _sum_string_list(str_list, default_value):
-    total = 0
-    suffix = ""
-    for item in str_list:
-        if not item:
-            break
-        num = ""
-        for char in item:
-            if char.isdigit():
-                num += char
-            else:
-                if not suffix:
-                    suffix = item[len(num):]
-                break
-        total += int(num)
-    return f"{total}{suffix}" if total != 0 else default_value
-
-def _get_percentage(a1, a2):
-    if not a1 or not a2:
-        return "0%"
-    num1 = num2 = suffix1 = suffix2 = ""
-    for char in a1:
-        if char.isdigit():
-            num1 += char
-        else:
-            suffix1 = a1[len(num1):]
-            break
-    for char in a2:
-        if char.isdigit():
-            num2 += char
-        else:
-            suffix2 = a2[len(num2):]
-            break
-    num1 = int(num1)
-    num2 = int(num2)
-    if suffix1 == "Mi" and suffix2 == "Ki":
-        result = (num1 * 1024 / num2) * 100
-    elif suffix1 == "m" and suffix2 == "":
-        result =  (num1 / num2 / 1000) * 100
+def extract_number(string):
+    match = re.match(r"(\d+)", string)
+    if match:
+        return int(match.group(1))
     else:
-        raise NotImplementedError("Calculation of args type not implemented.")
-    return f"{result:.2f}%"
+        return None
+
+
+# ***Identify pods exposed via ingress and their network policies
+# MATCH (ingress:Ingress)-[:ROUTES_TO]->(service:Service)<-[:EXPOSES]-(pod:Pod)
+# MATCH (pod)-[:PROTECTED_BY]->(policy:NetworkPolicy)
+# RETURN ingress.name, pod.name, policy.name
+
+
+# *** Elaborate query to identify pods exposed via ingress and the network policies
+
+# ***Match ingress to services based on label selection
+# MATCH (ingress:Ingress)-[:SELECTS]->(serviceLabel:Label)
+# WITH ingress, collect(serviceLabel.name) as requiredServiceLabels
+
+# ***Match services that have all labels selected by ingress
+# MATCH (service:Service)-[:HAS_LABEL]->(serviceLabel:Label)
+# WITH ingress, service, requiredServiceLabels, collect(serviceLabel.name) as serviceLabels
+# WHERE all(label IN requiredServiceLabels WHERE label IN serviceLabels)
+
+# ***Match services to pods based on label selection
+# MATCH (service)-[:SELECTS]->(podLabel:Label)
+# WITH ingress, service, requiredServiceLabels, collect(podLabel.name) as requiredPodLabels
+
+# ***Match pods that have all labels selected by the service
+# MATCH (pod:Pod)-[:HAS_LABEL]->(podLabel:Label)
+# WITH ingress, pod, requiredPodLabels, collect(podLabel.name) as podLabels
+# WHERE all(label IN requiredPodLabels WHERE label IN podLabels)
+
+# Match the network policies protecting the pods
+# MATCH (pod)-[:PROTECTED_BY]->(policy:NetworkPolicy)
+
+# Return the ingress, pod, and policy names
+# RETURN ingress.name, pod.name, policy.name
