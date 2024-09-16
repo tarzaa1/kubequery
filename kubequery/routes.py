@@ -71,5 +71,5 @@ def list_pods_on_node(clusterId, nodeId):
 def list_allocated_resources_on_node(clusterId, nodeId):
     """ Retreive allocated resources statistics on a specified node
     """
-    resources = neo4j.execute_read(node_resources_info, clusterId, nodeId)
+    resources = neo4j.execute_read(node_resources, clusterId, nodeId)
     return jsonify(resources)
