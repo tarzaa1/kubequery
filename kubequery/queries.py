@@ -8,8 +8,12 @@ def count(tx, type):
         RETURN count(nodes)
         """
     result = tx.run(query)
-    return result.single().data()['count(nodes)']
-
+    count = None
+    try:
+        count = result.single().data()['count(nodes)']
+    except AttributeError:
+        pass
+    return count
 
 def distinct_labels(tx):
     query = f"""
@@ -17,12 +21,14 @@ def distinct_labels(tx):
             RETURN distinct labels(n), count(*)
             """
     result = tx.run(query)
-    # TODO error handeling
     stats_dict = {}
-    for record in result:
-        record_data = record.data()
-        stats_dict[record_data.get('labels(n)')[0]
-                   ] = record_data.get('count(*)')
+    try:
+        for record in result:
+            record_data = record.data()
+            stats_dict[record_data.get('labels(n)')[0]
+                    ] = record_data.get('count(*)')
+    except AttributeError:
+        pass
     return stats_dict
 
 
@@ -33,9 +39,12 @@ def clusters_info(tx):
             """
     result = tx.run(query)
     cluster_lst = []
-    for record in result:
-        record_data = record.data()
-        cluster_lst.append(record_data.get('n'))
+    try:
+        for record in result:
+            record_data = record.data()
+            cluster_lst.append(record_data.get('n'))
+    except AttributeError:
+        pass
     return cluster_lst
 
 
@@ -47,9 +56,12 @@ def nodes_info(tx, cluster_id: str):
         """
     result = tx.run(query)
     node_lst = []
-    for record in result:
-        record_data = record.data()
-        node_lst.append(record_data.get('nodes'))
+    try:
+        for record in result:
+            record_data = record.data()
+            node_lst.append(record_data.get('nodes'))
+    except AttributeError:
+        pass
     return node_lst
 
 
@@ -61,9 +73,12 @@ def pods_info(tx, cluster_id: str, node_id: str):
         """
     result = tx.run(query)
     pod_lst = []
-    for record in result:
-        record_data = record.data()
-        pod_lst.append(record_data.get('pods'))
+    try:
+        for record in result:
+            record_data = record.data()
+            pod_lst.append(record_data.get('pods'))
+    except AttributeError:
+        pass
     return pod_lst
 
 
@@ -108,9 +123,12 @@ def pods_info_by_cluster(tx, cluster_id: str):
         """
     result = tx.run(query)
     pod_lst = []
-    for record in result:
-        record_data = record.data()
-        pod_lst.append(record_data.get('pods'))
+    try:
+        for record in result:
+            record_data = record.data()
+            pod_lst.append(record_data.get('pods'))
+    except AttributeError:
+        pass
     return pod_lst
 
 
