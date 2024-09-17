@@ -74,25 +74,29 @@ def node_resources(tx, cluster_id: str, node_id: str):
         MATCH (pod)-[:RUNS_CONTAINER]->(c:Container)
         RETURN node, sum(c.request_cpu) AS requestedCPU, sum(c.request_memory) AS requestedMemory, sum(c.limit_cpu) AS limitCPU, sum(c.limit_memory) AS limitMemory
         """
-    result = tx.run(query)
-    data = result.single().data()
-    node_data = data["node"]
     resources = {}
-    resources["name"] = node_data["hostname"]
-    resources["requests"] = {"cpu": data["requestedCPU"]/1000,
-                             "memory": data["requestedMemory"],
-                             }
-    resources["limits"] = {"cpu": data["limitCPU"]/1000,
-                           "memory": data["limitMemory"],
-                           }
-    resources["allocatable"] = {"cpu": node_data["allocatable_cpu"],
-                                "memory": extract_number(node_data["allocatable_memory"])/1000,
-                                "ephemeral_storage": node_data["allocatable_ephemeral_storage"]
+    result = tx.run(query)
+    try:
+        data = result.single().data()
+        node_data = data["node"]
+        resources["name"] = node_data["hostname"]
+        resources["requests"] = {"cpu": data["requestedCPU"]/1000,
+                                "memory": data["requestedMemory"],
                                 }
-    resources["utilization"] = {
-        "cpu": extract_number(node_data["usage_cpu"])/100000000,
-        "memory": extract_number(node_data["usage_memory"])/1000
-    }
+        resources["limits"] = {"cpu": data["limitCPU"]/1000,
+                            "memory": data["limitMemory"],
+                            }
+        resources["allocatable"] = {"cpu": node_data["allocatable_cpu"],
+                                    "memory": extract_number(node_data["allocatable_memory"])/1000,
+                                    "ephemeral_storage": node_data["allocatable_ephemeral_storage"]
+                                    }
+        resources["utilization"] = {
+            "cpu": extract_number(node_data["usage_cpu"])/100000000,
+            "memory": extract_number(node_data["usage_memory"])/1000
+        }
+    except AttributeError:
+        # e.g. no entity matched in query
+        pass
     return resources
 
 
