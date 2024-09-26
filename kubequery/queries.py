@@ -13,6 +13,8 @@ def count(tx, type):
         count = result.single().data()['count(nodes)']
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return count
 
 def distinct_labels(tx):
@@ -29,6 +31,8 @@ def distinct_labels(tx):
                     ] = record_data.get('count(*)')
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return stats_dict
 
 
@@ -45,6 +49,8 @@ def clusters_info(tx):
             cluster_lst.append(record_data.get('n'))
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return cluster_lst
 
 
@@ -62,6 +68,8 @@ def nodes_info(tx, cluster_id: str):
             node_lst.append(record_data.get('nodes'))
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return node_lst
 
 
@@ -79,6 +87,8 @@ def pods_info(tx, cluster_id: str, node_id: str):
             pod_lst.append(record_data.get('pods'))
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return pod_lst
 
 
@@ -110,8 +120,9 @@ def node_resources(tx, cluster_id: str, node_id: str):
             "memory": extract_number(node_data["usage_memory"])/1000
         }
     except AttributeError:
-        # e.g. no entity matched in query
         pass
+    except Exception as e:
+        raise
     return resources
 
 
@@ -129,6 +140,8 @@ def pods_info_by_cluster(tx, cluster_id: str):
             pod_lst.append(record_data.get('pods'))
     except AttributeError:
         pass
+    except Exception as e:
+        raise
     return pod_lst
 
 
