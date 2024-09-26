@@ -1,9 +1,25 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, abort, send_from_directory
 from kubequery.utils.graph import Neo4j
 from kubequery.queries import *
+from flask_swagger_ui import get_swaggerui_blueprint
 
 app = Flask(__name__)
 neo4j = Neo4j()
+
+# Swagger UI
+SWAGGER_URL = '/swagger'  # URL for accessing Swagger UI
+API_URL = '/static/swagger.yaml'
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,          # Swagger UI endpoint
+    API_URL,              # Swagger spec file
+    config={
+        'app_name': "KubeQuery API"
+    }
+)
+# Register the swagger blueprint
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
 
 @app.route("/", methods=['GET'])
 def index():
@@ -12,64 +28,71 @@ def index():
 
 @app.route("/clusters", methods=['GET'])
 def list_clusters():
-    """ Retrieve all available clusters
-
-    Response:
-    [
-        {"clusterId": "cluster1", "name": "Cluster 1"},
-        {"clusterId": "cluster2", "name": "Cluster 2"}
-    ]
-    """
-    clusters = neo4j.execute_read(clusters_info)
-    return jsonify(clusters)
+    try:
+        clusters = neo4j.execute_read(clusters_info)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not clusters:
+        abort(404, description=f"No cluster found")
+    return jsonify(clusters), 200
 
 @app.route("/stats", methods=['GET'])
 def list_stats():
-    stats = neo4j.execute_read(distinct_labels)
-    return jsonify(stats)
+    try:
+        stats = neo4j.execute_read(distinct_labels)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    return jsonify(stats), 200
 
 @app.route("/clusters/<string:clusterId>/nodes", methods=['GET'])
 def list_nodes(clusterId):
-    """ Retreive all nodes in a specified cluster
-
-    Response:
-    [
-        {"nodeId": "node1", "hostname": "node1-host", "status": "Ready"},
-        {"nodeId": "node2", "hostname": "node2-host", "status": "NotReady"}
-    ]
-    """
-    nodes = neo4j.execute_read(nodes_info, clusterId)
-    return jsonify(nodes)
+    if not clusterId:
+        abort(400, description="Missing clusterId")
+    try:
+        nodes = neo4j.execute_read(nodes_info, clusterId)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not nodes:
+        abort(404, description=f"No nodes found for clusterId {clusterId}")
+    return jsonify(nodes), 200
 
 @app.route("/clusters/<string:clusterId>/pods", methods=['GET'])
 def list_pods_on_cluster(clusterId):
-    """ Retreive all pods in a specified cluster
-
-    Response:
-    [
-        {"podId": "pod1", "name": "pod1", "status": "Running"},
-        {"podId": "pod2", "name": "pod2", "status": "Pending"}
-    ]
-    """
-    nodes = neo4j.execute_read(pods_info_by_cluster, clusterId)
-    return jsonify(nodes)
+    if not clusterId:
+        abort(400, description="Missing clusterId")
+    try:
+        pods = neo4j.execute_read(pods_info_by_cluster, clusterId)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not pods:
+        abort(404, description=f"No pods found for clusterId {clusterId}")
+    return jsonify(pods), 200
 
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/pods")
 def list_pods_on_node(clusterId, nodeId):
-    """ Retreive all pods scheduled on a specified node
-
-    Response:
-    [
-        {"podId": "pod1", "name": "pod1", "status": "Running"},
-        {"podId": "pod2", "name": "pod2", "status": "Pending"}
-    ]
-    """
-    pods = neo4j.execute_read(pods_info, clusterId, nodeId)
-    return jsonify(pods)
+    if not clusterId or not nodeId:
+        abort(400, description="Missing clusterId or nodeId")
+    try:
+        pods = neo4j.execute_read(pods_info, clusterId, nodeId)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not pods:
+        abort(404, description=f"No pods matched")
+    return jsonify(pods), 200
 
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/resources")
 def list_allocated_resources_on_node(clusterId, nodeId):
-    """ Retreive allocated resources statistics on a specified node
-    """
-    resources = neo4j.execute_read(node_resources, clusterId, nodeId)
-    return jsonify(resources)
+    if not clusterId or not nodeId:
+        abort(400, description="Missing clusterId or nodeId")
+    try:
+        resources = neo4j.execute_read(node_resources, clusterId, nodeId)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not resources:
+        abort(404, description=f"No resources available on node")
+    return jsonify(resources), 200
+
+# Serve the swagger.yaml file in the static directory
+@app.route("/static/swagger.yaml")
+def swagger_yaml():
+    return send_from_directory('static', 'swagger.yaml')
