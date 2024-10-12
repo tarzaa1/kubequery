@@ -1,5 +1,6 @@
 Flask==3.0.3
 neo4j==5.14.1
 flask-swagger-ui==4.11.1
+python-decouple==3.8
 # Editable Git install with no remote (kubequery==0.1)
 -e .
