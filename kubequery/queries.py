@@ -247,36 +247,3 @@ def extract_number(string):
         return int(match.group(1))
     else:
         return None
-
-
-# ***Identify pods exposed via ingress and their network policies
-# MATCH (ingress:Ingress)-[:ROUTES_TO]->(service:Service)<-[:EXPOSES]-(pod:Pod)
-# MATCH (pod)-[:PROTECTED_BY]->(policy:NetworkPolicy)
-# RETURN ingress.name, pod.name, policy.name
-
-
-# *** Elaborate query to identify pods exposed via ingress and the network policies
-
-# ***Match ingress to services based on label selection
-# MATCH (ingress:Ingress)-[:SELECTS]->(serviceLabel:Label)
-# WITH ingress, collect(serviceLabel.name) as requiredServiceLabels
-
-# ***Match services that have all labels selected by ingress
-# MATCH (service:Service)-[:HAS_LABEL]->(serviceLabel:Label)
-# WITH ingress, service, requiredServiceLabels, collect(serviceLabel.name) as serviceLabels
-# WHERE all(label IN requiredServiceLabels WHERE label IN serviceLabels)
-
-# ***Match services to pods based on label selection
-# MATCH (service)-[:SELECTS]->(podLabel:Label)
-# WITH ingress, service, requiredServiceLabels, collect(podLabel.name) as requiredPodLabels
-
-# ***Match pods that have all labels selected by the service
-# MATCH (pod:Pod)-[:HAS_LABEL]->(podLabel:Label)
-# WITH ingress, pod, requiredPodLabels, collect(podLabel.name) as podLabels
-# WHERE all(label IN requiredPodLabels WHERE label IN podLabels)
-
-# Match the network policies protecting the pods
-# MATCH (pod)-[:PROTECTED_BY]->(policy:NetworkPolicy)
-
-# Return the ingress, pod, and policy names
-# RETURN ingress.name, pod.name, policy.name
