@@ -17,6 +17,7 @@ def count(tx, type):
         raise
     return count
 
+
 def distinct_labels(tx):
     query = f"""
             MATCH (n) 
@@ -28,7 +29,7 @@ def distinct_labels(tx):
         for record in result:
             record_data = record.data()
             stats_dict[record_data.get('labels(n)')[0]
-                    ] = record_data.get('count(*)')
+                       ] = record_data.get('count(*)')
     except AttributeError:
         pass
     except Exception as e:
@@ -106,19 +107,39 @@ def node_resources(tx, cluster_id: str, node_id: str):
         node_data = data["node"]
         resources["name"] = node_data["hostname"]
         resources["requests"] = {"cpu": data["requestedCPU"]/1000,
-                                "memory": data["requestedMemory"],
-                                }
+                                 "memory": data["requestedMemory"],
+                                 }
         resources["limits"] = {"cpu": data["limitCPU"]/1000,
-                            "memory": data["limitMemory"],
-                            }
+                               "memory": data["limitMemory"],
+                               }
         resources["allocatable"] = {"cpu": node_data["allocatable_cpu"],
                                     "memory": extract_number(node_data["allocatable_memory"])/1000,
                                     "ephemeral_storage": node_data["allocatable_ephemeral_storage"]
                                     }
         resources["utilization"] = {
-            "cpu": extract_number(node_data["usage_cpu"])/100000000,
-            "memory": extract_number(node_data["usage_memory"])/1000
+            "cpu": node_data["usage_cpu"]/100000000,
+            "memory": node_data["usage_memory"]/1000
         }
+    except AttributeError:
+        pass
+    except Exception as e:
+        raise
+    return resources
+
+
+def pods_resources(tx, cluster_id: str):
+    query = f"""
+        MATCH (pod:Pod)-[:SCHEDULED_ON]->(node:K8sNode)-[BELONGS_TO]->(cluster:Cluster)
+        WHERE cluster.id = "{cluster_id}"
+        MATCH (pod)-[:RUNS_CONTAINER]->(c:Container)
+        RETURN node.id AS nodeID, node.hostname AS nodeName, pod.name AS podName, sum(c.usage_cpu) AS usageCPU, sum(c.usage_memory) AS usageMemory
+        """
+    resources = []
+    result = tx.run(query)
+    try:
+        for record in result:
+            resources.append({"pod_name": record["podName"], "node_name": record["nodeName"],
+                             "node_id": record["nodeID"], "usage_cpu": record["usageCPU"], "usage_memory": record["usageMemory"]})
     except AttributeError:
         pass
     except Exception as e:
@@ -240,6 +261,7 @@ def get_edges(tx, start, end):
         RETURN r
         """
     return tx.run(query)
+
 
 def extract_number(string):
     match = re.match(r"(\d+)", string)
