@@ -92,6 +92,18 @@ def list_allocated_resources_on_node(clusterId, nodeId):
         abort(404, description=f"No resources available on node")
     return jsonify(resources), 200
 
+@app.route("/clusters/<string:clusterId>/pods/resources")
+def list_pods_usage_on_cluster(clusterId):
+    if not clusterId:
+        abort(400, description="Missing clusterId")
+    try:
+        resources = neo4j.execute_read(pods_resources, clusterId)
+    except Exception as e:
+        abort(500, description=f"An unexpected error occurred: {str(e)}")
+    if not resources:
+        abort(404, description=f"No resources available")
+    return jsonify(resources), 200
+
 # Serve the swagger.yaml file in the static directory
 @app.route("/static/swagger.yaml")
 def swagger_yaml():
