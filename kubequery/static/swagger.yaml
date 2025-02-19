@@ -382,3 +382,47 @@ paths:
           description: No resources metrics found
         500:
           description: Unexpected server error
+
+  /clusters/{clusterId}/pods/resources:
+    get:
+      summary: Get resource usage metrics for all pods in a specified cluster
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: A list of resource usage metrics for all pods in the cluster
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                node_id:
+                  type: string
+                  description: "Unique ID of the node where the pod is scheduled"
+                  example: "451ba2fb-78cc-4504-aaa4-4cf472244ac2"
+                node_name:
+                  type: string
+                  description: "Hostname of the node"
+                  example: "clever-shraddha-m2"
+                pod_name:
+                  type: string
+                  description: "Name of the pod"
+                  example: "shippingservice-7b68c9bfb6-bxwpw"
+                usage_cpu:
+                  type: integer
+                  description: "CPU usage in nanocores (n)"
+                  example: 632630
+                usage_memory:
+                  type: integer
+                  description: "Memory usage in KiB"
+                  example: 8440
+              additionalProperties: true
+        400:
+          description: Invalid clusterId provided
+        404:
+          description: No resource usage data available for pods in the specified cluster
+        500:
+          description: Unexpected server error
