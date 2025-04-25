@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-for-node-1 # This will be updated dynamically
+  annotations:
+    kwok.x-k8s.io/fake-events: "true"
+  namespace: default
+  labels:
+    app: node-1-pods # This label will be used as a selector
+spec:
+  replicas: 10 # Default replica count; will be updated if needed
+  selector:
+    matchLabels:
+      app: node-1-pods # Must match the pod template labels
+  template:
+    metadata:
+      labels:
+        app: node-1-pods # Must match the selector above
+      annotations:
+        kwok.x-k8s.io/fake-events: "true"
+        kwok.x-k8s.io/pod: fake
+        kwok.x-k8s.io/usage-cpu: "100m"
+        kwok.x-k8s.io/usage-memory: "100Mi"
+        metrics.k8s.io/resource-metrics-path: /metrics/nodes/node-1/metrics/resource
+    spec:
+      nodeName: node-1 # This will be updated dynamically
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: In
+                values:
+                - kwok
+      # A taints was added to an automatically created Node.
+      # You can remove taints of Node or add this tolerations.
+      tolerations:
+      - key: "kwok.x-k8s.io/node"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: fake-container
+        image: fake-image

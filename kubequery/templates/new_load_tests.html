@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Load Test Data</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gray-100 min-h-screen flex flex-col items-center p-4 space-y-8"
+  >
+    <!-- Main container -->
+    <div class="bg-white shadow-md rounded-lg p-8 w-[95%]">
+      <!-- Title -->
+      <h1 class="text-2xl font-bold text-gray-800 mb-4">Load Test Data</h1>
+
+      <!-- Two-column layout -->
+      <div class="flex flex-col md:flex-row items-start gap-8">
+        <!-- Left Column: Filter & Multi-select box -->
+        <div class="w-full md:w-1/2 space-y-4">
+          <!-- Filter input -->
+          <div>
+            <label class="block text-gray-700 mb-1" for="customSelectFilter"
+              >Filter tests:</label
+            >
+            <input
+              type="text"
+              id="customSelectFilter"
+              placeholder="Type to filter tests..."
+              class="p-2 border border-gray-300 rounded w-full"
+            />
+          </div>
+
+          <!-- Multi-select container (scrollable) -->
+          <div>
+            <label class="block text-gray-700 mb-1" for="customSelectOptions"
+              >Select tests:</label
+            >
+            <div
+              class="border border-gray-300 rounded p-2 bg-white max-h-60 overflow-y-auto"
+            >
+              <div id="customSelectOptions" class="space-y-2">
+                {% for item in tests | sort(attribute='db_name') %}
+                <div class="checkbox-option">
+                  <label class="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      class="test-checkbox mr-2"
+                      value="{{ item.test_id }}"
+                      data-desc="{{ item.desc }}"
+                      data-db="{{ item.db_name }}"
+                    />
+                    <span
+                      >{{ item.desc }} -> {{ item.test_id }} -> {{ item.db_name
+                      }}</span
+                    >
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Output Type -->
+          <div>
+            <label class="block text-gray-700 mb-1 mt-4" for="outputType1"
+              >Output Type:</label
+            >
+            <select
+              id="outputType1"
+              class="p-2 border border-gray-300 rounded w-full"
+            >
+              <option value="selectType">Select Output Type</option>
+              <option value="analyse">Analyse Queries</option>
+              <option value="analyse_boxplot">
+                Analyse Queries w/ Box Plots
+              </option>
+              <option value="analyse_bar_plots">
+                Analyse Queries w/ Bar Plots
+              </option>
+              <option value="analyse_throughput">
+                Analyse Throughput w/ Bar Plots
+              </option>
+              <option value="analyse_bar_and_hops">
+                Analyse Aggregate of Num Hops w/ Bar Plots
+              </option>
+              <option value="cg_plots">Create Graph plots</option>
+            </select>
+          </div>
+          <!-- In your left column, after the output type dropdown -->
+          <button
+            id="loadDataBtn"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 hidden"
+          >
+            Load Data
+          </button>
+        </div>
+
+        <!-- Right Column: Selected test & output details -->
+        <div class="w-full md:w-1/2 space-y-4">
+          <!-- Selected Tests Info -->
+          <label class="block text-gray-700 mb-1" for="customSelectFilter"
+            >Filter tests:</label
+          >
+          <div id="selectedTests" class="p-4 border border-gray-300 rounded">
+            <p class="text-gray-600">No tests selected.</p>
+          </div>
+
+          <!-- Query Container (hidden initially) -->
+          <div
+            id="queryContainer"
+            class="p-4 border border-gray-300 rounded hidden"
+          >
+            <!-- Query checkboxes will appear here -->
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Required Extras (hidden initially) -->
+            <div
+              id="selectPercentile"
+              class="p-4 border border-gray-300 rounded hidden"
+            >
+              <!-- Additional dropdowns or extras will appear here -->
+            </div>
+            <div
+              id="selectedHops"
+              class="p-4 border border-gray-300 rounded hidden"
+            >
+              <!-- Additional dropdowns or extras will appear here -->
+            </div>
+            <div
+              id="sortByHops"
+              class="p-4 border border-gray-300 rounded hidden"
+            >
+              <!-- Additional dropdowns or extras will appear here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="mt-8">
+        <div
+          id="resultsContainer"
+          class="bg-gray-50 p-4 rounded-lg border border-gray-300 shadow overflow-x-auto w-full"
+        >
+          <!-- Graph/table results will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass queries from Flask to JavaScript -->
+    <script>
+      const globalQueries = {{ queries | tojson | safe }};
+    </script>
+    <script src="../static/js/new_load_tests.js"></script>
+  </body>
+</html>

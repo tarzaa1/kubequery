@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Live Metrics</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gray-100 min-h-screen flex flex-col items-center p-4 space-y-8"
+  >
+    <!-- Main container -->
+    <div class="bg-white shadow-md rounded-lg p-8 w-[95%]">
+      <!-- Title -->
+      <h1 class="text-2xl font-bold text-gray-800 mb-4">Live Metrics</h1>
+      <!-- Two-column layout -->
+      <div class="flex flex-col md:flex-row items-start gap-8">
+        <!-- Left Column: Preset Tests -->
+        <div class="w-full md:w-1/2 space-y-4">
+          <h6
+            class="inline-block text-lg font-medium text-gray-700 border-b border-gray-300 mb-2"
+          >
+            Run benchmark from config
+          </h6>
+          <!-- Preset dropdown -->
+          <div>
+            <label class="block text-gray-700 mb-1" for="testSelect">
+              Select test:
+            </label>
+            <select
+              id="testSelect"
+              class="p-2 border border-gray-300 rounded w-full"
+            >
+              {% for preset in presets %}
+              <option
+                value="{{ preset.desc }}"
+                data-clusters="{{ preset.num_clusters }}"
+                data-nodes="{{ preset.num_nodes }}"
+                data-pods="{{ preset.num_pods }}"
+              >
+                {{ preset.desc }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <!-- Db list -->
+          <div>
+            <label class="block text-gray-700 mb-1" for="dbSelect">
+              Select Database:
+            </label>
+            <select
+              id="dbSelect"
+              class="p-2 border border-gray-300 rounded w-full"
+            >
+              <option id="allDb">All</option>
+              {% for db in databases %}
+              <option value="{{ db }}">{{ db }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <!-- Preset queries list -->
+          <div>
+            <p class="text-gray-600 mb-2">
+              Queries to benchmark for each test:
+            </p>
+            <div class="flex flex-wrap gap-4 max-h-64 overflow-y-auto">
+              <ul class="flex flex-wrap gap-2">
+                {% for q in queries %}
+                <li class="bg-gray-200 px-2 py-1 rounded text-sm text-gray-700">
+                  {{ q }}
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+          <!-- Run Benchmark button -->
+          <div>
+            <button
+              onclick="startBenchmark()"
+              class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition w-full"
+            >
+              Run Benchmark
+            </button>
+          </div>
+          <!-- Run All Benchmarks button -->
+          <div>
+            <button
+              onclick="startAllBenchmarks()"
+              class="bg-indigo-500 text-white py-2 px-4 rounded hover:bg-indigo-600 transition w-full"
+            >
+              Run All Benchmarks
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column: Custom Tests -->
+        <div class="w-full md:w-1/2 space-y-4">
+          <h6
+            class="inline-block text-lg font-medium text-gray-700 border-b border-gray-300 mb-2"
+          >
+            Run custom benchmark
+          </h6>
+          <!-- Number of Nodes/Pods (side by side) -->
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="block text-gray-700 mb-1" for="customClusters">
+                Number of Clusters:
+              </label>
+              <input
+                type="number"
+                id="customClusters"
+                class="p-2 border border-gray-300 rounded w-full"
+                placeholder="e.g. 1"
+              />
+            </div>
+            <div class="flex-1">
+              <label class="block text-gray-700 mb-1" for="customNodes">
+                Number of Nodes:
+              </label>
+              <input
+                type="number"
+                id="customNodes"
+                class="p-2 border border-gray-300 rounded w-full"
+                placeholder="e.g. 5"
+              />
+            </div>
+            <div class="flex-1">
+              <label class="block text-gray-700 mb-1" for="customPods">
+                Number of Pods:
+              </label>
+              <input
+                type="number"
+                id="customPods"
+                class="p-2 border border-gray-300 rounded w-full"
+                placeholder="e.g. 10"
+              />
+            </div>
+          </div>
+          <!-- Db list -->
+          <div>
+            <label class="block text-gray-700 mb-1" for="customDbSelect">
+              Select Database:
+            </label>
+            <select
+              id="customDbSelect"
+              class="p-2 border border-gray-300 rounded w-full"
+            >
+              <option value="All" id="allDb">All</option>
+              {% for db in databases %}
+              <option value="{{ db }}">{{ db }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <!-- Custom queries checkboxes -->
+          <div>
+            <p class="text-gray-600 mb-2">
+              Queries to benchmark for each test:
+            </p>
+            <div class="flex flex-wrap gap-4 max-h-64 overflow-y-auto">
+              <!-- "All" checkbox -->
+              <label class="flex items-center space-x-1">
+                <input type="checkbox" id="selectAllQueries" />
+                <span>All</span>
+              </label>
+              <!-- Individual query checkboxes -->
+              {% for query in queries %}
+              <label class="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  value="{{ query }}"
+                  class="queryCheckbox"
+                />
+                <span>{{ query }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <!-- Run Custom Benchmark button -->
+          <div>
+            <button
+              onclick="startCustomBenchmark()"
+              class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition w-full"
+            >
+              Run Custom Benchmark
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status message -->
+      <div
+        id="status"
+        class="mt-12 p-4 border border-gray-300 rounded bg-gray-100 font-semibold text-lg text-gray-700"
+      ></div>
+
+      <!-- Deployment progress -->
+      <div
+        id="deployment-progress"
+        class="w-full max-w-lg my-4 p-4 border border-gray-300 rounded bg-gray-50"
+      >
+        <div
+          class="relative w-full bg-gray-200 border border-gray-300 rounded h-10"
+        >
+          <div
+            id="progress-fill"
+            class="bg-blue-500 text-white font-bold text-center h-10 rounded"
+            style="width: 0%; line-height: 2.5rem"
+          >
+            0%
+          </div>
+        </div>
+        <p id="progress-text" class="mt-2 text-center text-lg"></p>
+      </div>
+
+      <!-- Cyto diagram data -->
+      <div class="w-full">
+        <!-- Other elements, if any -->
+        <div
+          id="diagramData"
+          class="w-full h-[450px] border border-gray-300 relative"
+        >
+          <!-- Query Name positioned at top-left -->
+          <div
+            id="query-name"
+            class="absolute top-20 left-2 bg-blue-500 text-white bg-opacity-90 p-4 border border-gray-300 rounded z-10 text-2xl"
+          >
+            Query Name Here
+          </div>
+
+          <!-- Graph Stats positioned below the query name -->
+          <div
+            id="graph-stats"
+            class="absolute top-2 left-2 bg-white bg-opacity-90 p-4 border border-gray-300 rounded z-10 text-2xl"
+          >
+            Nodes: 0 | Relationships: 0
+          </div>
+        </div>
+      </div>
+
+      <!-- Dash Dashboard -->
+      <div
+        class="bg-white rounded-lg w-full mx-auto overflow-x-auto mt-8"
+        id="dash"
+      >
+        <iframe
+          src="/dash/"
+          class="w-full h-[600px] rounded-lg border border-gray-300 shadow"
+        ></iframe>
+      </div>
+    </div>
+
+    <!-- Global configuration variables -->
+    <script>
+      window.config = {
+        globalClusters: {{ clusters_list | tojson }},
+        globalNodes: {{ nodes_list | tojson }},
+        globalPods: {{ pods_list | tojson }},
+        globalQueries: {{ queries | tojson }},
+        globalDb: {{ databases | tojson }}
+      };
+    </script>
+
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+
+    <script src="../static/js/metrics.js"></script>
+  </body>
+</html>

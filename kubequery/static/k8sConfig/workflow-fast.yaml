@@ -1,0 +1,193 @@
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: pod-ready
+spec:
+  resourceRef:
+    apiGroup: v1
+    kind: Pod
+  selector:
+    matchExpressions:
+      - key: ".metadata.deletionTimestamp"
+        operator: "DoesNotExist"
+      - key: ".status.podIP"
+        operator: "DoesNotExist"
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      conditions:
+        - lastTransitionTime: {{ $now }}
+          status: "True"
+          type: Initialized
+        - lastTransitionTime: {{ $now }}
+          status: "True"
+          type: Ready
+        - lastTransitionTime: {{ $now }}
+          status: "True"
+          type: ContainersReady
+        {{ range .spec.readinessGates }}
+        - lastTransitionTime: {{ $now }}
+          status: "True"
+          type: {{ .conditionType }}
+        {{ end }}
+
+      containerStatuses:
+        {{ range .spec.containers }}
+        - image: {{ .image }}
+          name: {{ .name }}
+          ready: true
+          restartCount: 0
+          state:
+            running:
+              startedAt: {{ $now }}
+        {{ end }}
+
+      initContainerStatuses:
+        {{ range .spec.initContainers }}
+        - image: {{ .image }}
+          name: {{ .name }}
+          ready: true
+          restartCount: 0
+          state:
+            terminated:
+              exitCode: 0
+              finishedAt: {{ $now }}
+              reason: Completed
+              startedAt: {{ $now }}
+        {{ end }}
+
+      # Instead of using NodeIPWith to compute the host IP dynamically,
+      # we hard-code a fake internal IP.
+      hostIP: "10.0.0.100"
+      podIP: {{ PodIPWith .spec.nodeName ( or .spec.hostNetwork false ) ( or .metadata.uid "" ) ( or .metadata.name "" ) ( or .metadata.namespace "" ) }}
+      phase: Running
+      startTime: {{ $now }}
+---
+
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: node-initialize
+spec:
+  resourceRef:
+    apiGroup: v1
+    kind: Node
+  selector:
+    matchExpressions:
+    - key: '.status.conditions.[] | select( .type == "Ready" ) | .status'
+      operator: 'NotIn'
+      values:
+      - 'True'
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      {{ $lastTransitionTime := or .metadata.creationTimestamp $now }}
+      conditions:
+      {{ range NodeConditions }}
+      - lastHeartbeatTime: {{ $now | Quote }}
+        lastTransitionTime: {{ $lastTransitionTime | Quote }}
+        message: {{ .message | Quote }}
+        reason: {{ .reason | Quote }}
+        status: {{ .status | Quote }}
+        type: {{ .type  | Quote}}
+      {{ end }}
+
+      addresses:
+        {{ with .status.addresses }}
+        {{ YAML . 1 }}
+        {{ end }}
+        {{ if NodeIP }}
+        - address: {{ NodeIP | Quote }}
+          type: InternalIP
+        {{ end }}
+        - address: {{ "1.0.0" | Quote }}
+          type: FakeInternalIP
+        {{ with NodeName }}
+        - address: {{ . | Quote }}
+          type: Hostname
+        {{ end }}
+
+
+      {{ with NodePort }}
+      daemonEndpoints:
+        kubeletEndpoint:
+          Port: {{ . }}
+      {{ end }}
+
+      allocatable:
+      {{ with .status.allocatable }}
+      {{ YAML . 1 }}
+      {{ else }}
+        cpu: 1k
+        memory: 1Ti
+        pods: 1M
+      {{ end }}
+      capacity:
+      {{ with .status.capacity }}
+      {{ YAML . 1 }}
+      {{ else }}
+        cpu: 1k
+        memory: 1Ti
+        pods: 1M
+      {{ end }}
+
+      {{ $nodeInfo := .status.nodeInfo }}
+      {{ $kwokVersion := printf "kwok-%s" Version }}
+      nodeInfo:
+        architecture: {{ or $nodeInfo.architecture "amd64" }}
+        bootID: {{ or $nodeInfo.bootID `""` }}
+        containerRuntimeVersion: {{ or $nodeInfo.containerRuntimeVersion $kwokVersion }}
+        kernelVersion: {{ or $nodeInfo.kernelVersion $kwokVersion }}
+        kubeProxyVersion: {{ or $nodeInfo.kubeProxyVersion $kwokVersion }}
+        kubeletVersion: {{ or $nodeInfo.kubeletVersion $kwokVersion }}
+        machineID: {{ or $nodeInfo.machineID `""` }}
+        operatingSystem: {{ or $nodeInfo.operatingSystem "linux" }}
+        osImage: {{ or $nodeInfo.osImage `""` }}
+        systemUUID: {{ or $nodeInfo.systemUUID `""` }}
+      phase: Running
+---
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: deployment-all-ready
+spec:
+  resourceRef:
+    apiGroup: apps/v1
+    kind: Deployment
+  # Adjust this selector to match the deployments you want to patch
+  selector:
+    matchLabels:
+      app: node-1-pods
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      replicas: {{ .spec.replicas }}
+      updatedReplicas: {{ .spec.replicas }}
+      readyReplicas: {{ .spec.replicas }}
+      availableReplicas: {{ .spec.replicas }}
+      conditions:
+      - type: Available
+        status: "True"
+        lastTransitionTime: {{ $now }}
+      - type: Progressing
+        status: "True"
+        lastTransitionTime: {{ $now }}
+---
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: replicaset-all-ready
+spec:
+  resourceRef:
+    apiGroup: apps/v1
+    kind: ReplicaSet
+  # Adjust this selector to match the replicasets you want to patch
+  selector:
+    matchLabels:
+      app: node-1-pods
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      replicas: {{ .spec.replicas }}
+      readyReplicas: {{ .spec.replicas }}
+      fullyLabeledReplicas: {{ .spec.replicas }}

@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-10-for-node-1
+  namespace: default
+  labels:
+    kwok-pod: fake
+  annotations:
+    kwok.x-k8s.io/fake-events: "true"
+    kwok.x-k8s.io/pod: fake
+    kwok.x-k8s.io/usage-cpu: 100m
+    kwok.x-k8s.io/usage-memory: 100Mi
+    metrics.k8s.io/resource-metrics-path: /metrics/nodes/node-1/metrics/resource
+spec:
+  containers:
+    - name: container-0
+      image: busybox
+      imagePullPolicy: Always
+      command: ["sh", "-c", "while true; do echo 'Hello from fake service'; sleep 5; done"]
+      ports:
+        - containerPort: 8080
+      resources:
+        limits:
+          cpu: 1m
+          memory: 1Mi
+        requests:
+          cpu: 1m
+          memory: 1Mi
+      volumeMounts:
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          name: kube-api-access
+          readOnly: true
+  nodeName: node-1
+  restartPolicy: Always
+  tolerations:
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+  volumes:
+    - name: kube-api-access
+      projected:
+        sources:
+          - serviceAccountToken:
+              expirationSeconds: 3607
+              path: token
+          - configMap:
+              items:
+                - key: ca.crt
+                  path: ca.crt
+              name: kube-root-ca.crt
+          - downwardAPI:
+              items:
+                - fieldRef:
+                    fieldPath: metadata.namespace
+                  path: namespace

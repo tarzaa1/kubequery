@@ -1,0 +1,160 @@
+# Node Stage: Immediately mark nodes as ready with a unique (or fixed) InternalIP.
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: node-initialize
+spec:
+  resourceRef:
+    apiGroup: v1
+    kind: Node
+  selector:
+    matchExpressions:
+      - key: '.status.conditions.[] | select( .type == "Ready" ) | .status'
+        operator: 'NotIn'
+        values:
+          - 'True'
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      {{ $lastTransitionTime := or .metadata.creationTimestamp $now }}
+      conditions:
+      {{ range NodeConditions }}
+      - lastHeartbeatTime: {{ $now | Quote }}
+        lastTransitionTime: {{ $lastTransitionTime | Quote }}
+        message: {{ .message | Quote }}
+        reason: {{ .reason | Quote }}
+        status: "True"
+        type: {{ .type | Quote }}
+      {{ end }}
+      addresses:
+      {{ $parts := split .metadata.name "-" }}
+      {{ if gt (len $parts) 1 }}
+      - address: {{ printf "10.0.0.%d" (atoi (index $parts 1)) | Quote }}
+        type: InternalIP
+      {{ else }}
+      - address: "10.0.0.1" | Quote
+        type: InternalIP
+      {{ end }}
+      - address: {{ NodeName | Quote }}
+        type: Hostname
+      allocatable:
+        cpu: "1000m"
+        memory: "8Gi"
+        pods: "110"
+      capacity:
+        cpu: "1000m"
+        memory: "8Gi"
+        pods: "110"
+      nodeInfo:
+        architecture: "amd64"
+        bootID: ""
+        containerRuntimeVersion: "kwok-v0.6.1"
+        kernelVersion: "kwok-v0.6.1"
+        kubeProxyVersion: "kwok-v0.6.1"
+        kubeletVersion: "kwok-v0.6.1"
+        machineID: ""
+        operatingSystem: "linux"
+        osImage: "KWOK"
+        systemUUID: ""
+      phase: Running
+      startTime: {{ $now }}
+
+---
+# Pod Stage: Instantly mark pods as ready.
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: pod-ready
+spec:
+  resourceRef:
+    apiGroup: v1
+    kind: Pod
+  selector:
+    matchExpressions:
+      - key: ".metadata.deletionTimestamp"
+        operator: "DoesNotExist"
+      - key: ".status.podIP"
+        operator: "DoesNotExist"
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      conditions:
+      - lastTransitionTime: {{ $now | Quote }}
+        status: "True"
+        type: "Initialized"
+      - lastTransitionTime: {{ $now | Quote }}
+        status: "True"
+        type: "Ready"
+      - lastTransitionTime: {{ $now | Quote }}
+        status: "True"
+        type: "ContainersReady"
+      containerStatuses:
+      {{ range .spec.containers }}
+      - image: {{ .image | Quote }}
+        name: {{ .name | Quote }}
+        ready: true
+        restartCount: 0
+        state:
+          running:
+            startedAt: {{ $now | Quote }}
+      {{ end }}
+      phase: Running
+      podIP: {{ PodIPWith .spec.nodeName false .metadata.uid .metadata.name .metadata.namespace | Quote }}
+      hostIP: {{ NodeIPWith .spec.nodeName | Quote }}
+      startTime: {{ $now | Quote }}
+
+---
+# ReplicaSet Stage: Set ReplicaSet status to indicate all replicas are ready.
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: replicaset-ready
+spec:
+  resourceRef:
+    apiGroup: apps/v1
+    kind: ReplicaSet
+  selector:
+    matchExpressions:
+      - key: ".status.replicas"
+        operator: "DoesNotExist"
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      # Set the total replicas, ready replicas, and fully labeled replicas
+      replicas: {{ .spec.replicas }}
+      readyReplicas: {{ .spec.replicas }}
+      fullyLabeledReplicas: {{ .spec.replicas }}
+      conditions:
+      - type: "Available"
+        status: "True"
+        lastUpdateTime: {{ $now | Quote }}
+        lastTransitionTime: {{ $now | Quote }}
+      phase: Running
+
+---
+# Deployment Stage: Set Deployment status so that desired replicas are instantly ready.
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: deployment-ready
+spec:
+  resourceRef:
+    apiGroup: apps/v1
+    kind: Deployment
+  selector:
+    matchExpressions:
+      - key: ".status.replicas"
+        operator: "DoesNotExist"
+  next:
+    statusTemplate: |
+      {{ $now := Now }}
+      replicas: {{ .spec.replicas }}
+      readyReplicas: {{ .spec.replicas }}
+      updatedReplicas: {{ .spec.replicas }}
+      availableReplicas: {{ .spec.replicas }}
+      conditions:
+      - type: "Available"
+        status: "True"
+        lastUpdateTime: {{ $now | Quote }}
+        lastTransitionTime: {{ $now | Quote }}
+      phase: Running

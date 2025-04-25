@@ -1,4 +1,4 @@
-from .base import GraphDB
+from kubequery.utils.graph.base import GraphDB
 from neo4j import GraphDatabase
 
 
@@ -7,7 +7,7 @@ class Neo4j(GraphDB):
         self.driver = None
 
     def connect(self, URI, AUTH):
-        self.driver = GraphDatabase.driver(URI, auth=AUTH)
+        self.driver = GraphDatabase.driver(URI, auth=AUTH, connection_timeout=300)
         self.driver.verify_connectivity()
 
     def get_session(self):

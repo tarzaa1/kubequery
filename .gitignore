@@ -165,3 +165,8 @@ Footer
 
 
 /kubequery/static/data/*
+/kubequery/static/images/*
+
+/neo4j
+/neo4j_metrics
+/memgraph

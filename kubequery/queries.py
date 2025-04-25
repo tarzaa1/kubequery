@@ -247,3 +247,27 @@ def extract_number(string):
         return int(match.group(1))
     else:
         return None
+
+
+def delete_all(tx):
+    query = """MATCH (n)
+                DETACH DELETE n
+            """
+    return tx.run(query)
+
+def get_replicaset(tx):
+    query = """
+    MATCH (r:ReplicaSet)
+    RETURN r
+    """
+    result =  tx.run(query)
+    rs_list = []
+    try:
+        for record in result:
+            record_data = record.data()
+            rs_list.append(record_data.get('replicasets')) # Make sure this is correct
+    except AttributeError:
+        pass
+    except Exception as e:
+        raise
+    return rs_list
