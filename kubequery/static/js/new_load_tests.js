@@ -595,24 +595,14 @@ function fetchDataWithQueryParams() {
         </div>
       `;
       } else if (data.analyse_boxplot) {
-        // Determine the grid columns class based on the number of selected tests.
-        const gridColsClass =
-          selectedTestsArr.length > 1 ? "grid-cols-2" : "grid-cols-1";
+        const boxplotUrl = `/static/images/queries_boxplot_${testIdsCombined}.png${cacheBuster}`;
 
         resultsContainer.innerHTML = `
           <div class="flex flex-col items-center">
             <h3 class="text-lg font-semibold">Boxplot Comparison</h3>
-            <div class="grid ${gridColsClass} gap-4">
-              ${selectedTestsArr
-                .map(
-                  (test_id) => `
-                <div class="p-2 border rounded">
-                  <img src="/static/images/queries_boxplot_${test_id}.png${cacheBuster}" alt="Boxplot for ${test_id}" class="max-w-full" />
-                  <p class="text-sm mt-1">${test_id}</p>
-                </div>
-              `
-                )
-                .join("")}
+            <div class="p-2 border rounded">
+              <img src="${boxplotUrl}" alt="Boxplot for ${testIdsCombined}" class="max-w-full" />
+              <p class="text-sm mt-1">${testIdsCombined}</p>
             </div>
           </div>
         `;

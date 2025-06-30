@@ -268,11 +268,15 @@ def load_tests():
     queries = ['test_get_all_nodes', 'test_get_all_node_annotations', 'test_get_all_node_labels', 'test_get_all_node_taint', 
                 'test_get_all_nodes_pods', 'test_get_all_pods_labels', 'test_get_all_pods_annotations', 'test_get_all_pods_containers', 'test_get_all_pods_replicasets', 
                 'test_get_all_pods_replicasets_labels', 'test_get_all_pods_replicasets_annotations', 'test_get_all_pods_deployments', 
-                 'test_get_all_pods_deployments_annotations', 'test_get_all_pods_deployments_labels', 'test_get_pods_for_specific_node', 
-                  'get_labels_for_specific_node', 'get_taint_for_specific_node', 'get_annotation_for_specific_node', 'get_pod_labels_for_specific_node', 
-                  'get_pod_annotations_for_specific_node', 'get_pod_container_for_specific_node', 'get_pod_replicaset_for_specific_node', 
-                 'get_pod_deployment_for_specific_node', 'get_pod_replicaset_label_for_specific_node', 
-                    'get_pod_replicaset_annotation_for_specific_node', 'get_pod_deployment_label_for_specific_node', 'get_pod_deployment_annotation_for_specific_node', 
+                 'test_get_all_pods_deployments_annotations', 'test_get_all_pods_deployments_labels', 
+                 
+                #  'test_get_pods_for_specific_node', 
+                #   'get_labels_for_specific_node', 'get_taint_for_specific_node', 'get_annotation_for_specific_node', 'get_pod_labels_for_specific_node', 
+                #   'get_pod_annotations_for_specific_node', 'get_pod_container_for_specific_node', 'get_pod_replicaset_for_specific_node', 
+                #  'get_pod_deployment_for_specific_node', 'get_pod_replicaset_label_for_specific_node', 
+                #     'get_pod_replicaset_annotation_for_specific_node', 'get_pod_deployment_label_for_specific_node', 'get_pod_deployment_annotation_for_specific_node', 
+
+
                     'get_pod_labels_for_specific_pod', 'get_pod_annotations_for_specific_pod', 'get_pod_container_for_specific_pod', 'get_pod_replicaset_for_specific_pod', 
                     'get_pod_deployment_for_specific_pod', 'get_pod_replicaset_label_for_specific_pod', 'get_pod_replicaset_annotation_for_specific_pod', 
                     'get_pod_deployment_label_for_specific_pod', 

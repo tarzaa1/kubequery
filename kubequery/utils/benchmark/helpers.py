@@ -13,6 +13,16 @@ THROUGHPUT_CSV = "kubequery/static/data/throughput.csv"
 STATS_CSV = "kubequery/static/data/real_docker_stats.csv"
 
 
+# Consistent fontsize across plots
+matplotlib.rcParams.update({
+    'axes.titlesize': 22,
+    'axes.labelsize': 20,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'legend.fontsize': 15,
+    'legend.title_fontsize': 15
+})
+
 def load_csvs(real_stats=True, queries=True, throughput=True):
     """Load CSV files and format the data."""
     CSVs = []
@@ -80,102 +90,75 @@ def plot_line_chart(x, y, xlabel, ylabel, title, legend_label, filepath,
     plt.savefig(filepath)
     plt.close()
 
-
 def plot_multiple_line_chart(
         filepath, title, xlabel, ylabel,
         legend_labels, 
         x_values,  # List of x-axis arrays/Series, one per line.
         y_values,  # List of y-axis arrays/Series, one per line.
-        figure_size=(12, 6), grid=True, line_style='-', colors=None      
+        figure_size=(12, 6), grid=True, 
+        colors=None, styles=None,
+        downsample_step=100
 ):  
     """
-    Plot multiple line charts on the same plot.
+    Plot multiple line charts on the same plot, with optional downsampling, custom colors, and styles.
 
     Parameters:
-      filepath      : String - where to save the resulting image.
-      title         : String - title of the chart.
-      xlabel        : String - label for the x-axis.
-      ylabel        : String - label for the y-axis.
-      legend_labels : List of strings - one label for each line plotted.
-      x_values      : List/array - each element is the x-axis values for a test.
-      y_values      : List of lists - each inner list contains y-values for a test.
-      figure_size   : Tuple - figure dimensions (default is (12, 6)).
-      grid          : Boolean - whether to show grid lines.
-      line_style    : String - line style to use (default '-').
-      colors        : Optional - either a single color string or a list of color strings.
+      filepath        : String - where to save the resulting image.
+      title           : String - title of the chart.
+      xlabel          : String - label for the x-axis.
+      ylabel          : String - label for the y-axis.
+      legend_labels   : List of strings - one label for each line plotted.
+      x_values        : List/array - each element is the x-axis values for a test.
+      y_values        : List of lists - each inner list contains y-values for a test.
+      figure_size     : Tuple - figure dimensions (default is (12, 6)).
+      grid            : Boolean - whether to show grid lines.
+      colors          : List of colors for each line.
+      styles          : List of line styles for each line (e.g. '-', '--')
+      downsample_step : Integer - downsampling step (default = 100)
     """
 
     plt.figure(figsize=figure_size)
 
-    # Handle colors: if a single color string is passed, convert it to a list.
-    if colors is not None and isinstance(colors, str):
-        colors = [colors] * len(y_values)
-
-    # Iterate over each test's x and y data.
     for i, (x, y) in enumerate(zip(x_values, y_values)):
         label = legend_labels[i] if i < len(legend_labels) else None
-        # If colors provided, use the i-th color; otherwise, let matplotlib choose.
         col = colors[i] if colors is not None and i < len(colors) else None
-        plt.plot(x, y, linestyle=line_style, label=label, color=col)
+        style = styles[i] if styles is not None and i < len(styles) else '-'
+
+        # Downsample
+        x_ds = x[::downsample_step]
+        y_ds = y[::downsample_step]
+
+        plt.plot(x_ds, y_ds, linestyle=style, color=col, label=label)
 
     if grid:
         plt.grid(True)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(filepath)
-    plt.close()
+
+    plt.xlabel(xlabel,)
+    plt.ylabel(ylabel,)
+    plt.title(title,)
 
 
-def plot_bar_chart(categories, values, ylabel, title, filepath, second_values=None, second_label=None, rotation=True, figure_size=(14, 6)):
-    """
-    Plots a single bar chart if only `values` are given.
-    If `second_values` is provided, plots grouped (side-by-side) bars.
-    """
+    plt.legend(loc="center left", bbox_to_anchor=(1, 0.9), title="Legend")
 
-    ensure_dir(filepath)
-    plt.figure(figsize=figure_size)
-    x = range(len(categories))
-    if second_values is None:
-        # === Single bar chart ===
-        plt.bar(categories, values)
-    else:
-        # === Grouped bar chart ===
-        bar_width = 0.4
-        plt.bar(
-            [xi - bar_width/2 for xi in x],
-            values,
-            width=bar_width,
-            label="Test" if not second_label else second_label[0]
-        )
-        plt.bar(
-            [xi + bar_width/2 for xi in x],
-            second_values,
-            width=bar_width,
-            label="Test" if not second_label else second_label[1]
-        )
-        plt.legend()
-    plt.ylabel(ylabel)
-    plt.title(title)
-    if rotation:
-        plt.xticks(x, categories, rotation=45, ha='right')
-    else:
-        plt.xticks(x, categories)
+    plt.tight_layout(rect=[0, 0, 1, 1])
 
-    plt.tight_layout()
+    # Remove unnecessary spines
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.grid(False)
     plt.savefig(filepath)
     plt.close()
 
 
 def improved_plot_bar_chart(
     filepath, title, ylabel,
-    values,       # List of lists: each inner list is one bar group (e.g. test)
-    xlabels,      # Labels for each group in `values` (e.g. test IDs)
-    categories,   # Labels for each bar on x-axis (e.g. query names)
+    values,
+    xlabels,
+    categories,
     rotation=True,
-    figure_size=(14, 6)
+    figure_size=(14, 6),
+    logscale=False,
 ):
     ensure_dir(filepath)
     plt.figure(figsize=figure_size)
@@ -184,14 +167,10 @@ def improved_plot_bar_chart(
     num_groups = len(values)
     x = range(num_categories)
 
-    # Calculate a bar width so all groups fit in the same category "slot"
     bar_width = 0.8 / num_groups if num_groups > 0 else 0.8
 
     for i, value_list in enumerate(values):
-        # Shift bars so that the middle bar ends up at x.
-        # i - (num_groups - 1)/2 -> negative shift for left bars, positive shift for right bars
-        offsets = [xi + (i - (num_groups - 1)/2) * bar_width for xi in x]
-
+        offsets = [xi + (i - (num_groups - 1) / 2) * bar_width for xi in x]
         plt.bar(
             offsets,
             value_list,
@@ -199,43 +178,82 @@ def improved_plot_bar_chart(
             label=xlabels[i]
         )
 
-    plt.legend(loc="upper left")
     plt.ylabel(ylabel)
-    plt.title(title)
 
-    # Place the x-axis ticks at the original x positions
-    # so the labels appear centered between the leftmost and rightmost bars.
+
+    if logscale:
+        plt.yscale('log')
+
     if rotation:
-        plt.xticks(x, categories, rotation=45, ha='right')
+        plt.xticks(x, categories, rotation=45, ha='right', )
     else:
         plt.xticks(x, categories)
 
-    plt.tight_layout()
+    # Place the legend outside the plot area
+    plt.legend(loc="center left", bbox_to_anchor=(1, .5), title="Legend")
+    plt.tight_layout(rect=[0, 0, 1, 1])  # Leave space on right for legend
+
     plt.savefig(filepath)
     plt.close()
 
 
 
-def plot_boxplot(data, labels, title, output_path):
-    """
-    Plots a single figure with multiple boxplots side by side,
-    one for each list of durations in `data`.
-    """
-    ensure_dir(output_path)
-    plt.figure(figsize=(12, 6))
+def improved_plot_boxplot(
+    filepath, title, ylabel,
+    data_groups,   # outer: DBs, inner: queries, inner-most: durations
+    db_labels,     # labels for legend
+    query_labels,  # x-axis labels
+    figure_size=(14, 6)
+):
+    ensure_dir(filepath)
+    plt.figure(figsize=figure_size)
 
-    # Create the boxplot; each list in `data` becomes one box
-    plt.boxplot(data, labels=labels)
+    num_queries = len(query_labels)
+    num_dbs = len(data_groups)
+    color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+    positions = []
+    data = []
+    widths = 0.8 / num_dbs
+    box_colors = []
+
+    for db_idx, db_data in enumerate(data_groups):
+        for query_idx, durations in enumerate(db_data):
+            pos = query_idx + (db_idx - (num_dbs - 1) / 2) * widths
+            positions.append(pos)
+
+            durations_ms = [d * 1000 for d in durations]
+
+
+            data.append(durations_ms)
+            box_colors.append(color_cycle[db_idx % len(color_cycle)])
+
+    box = plt.boxplot(
+        data,
+        positions=positions,
+        widths=widths,
+        patch_artist=True,
+        medianprops=dict(color='none'),
+        showfliers=False
+    )
+
+    for patch, color in zip(box["boxes"], box_colors):
+        patch.set_facecolor(color)
+
+    plt.xticks(range(num_queries), query_labels, rotation=45, ha="right",)
+    plt.ylabel(ylabel)
     plt.title(title)
-    plt.xlabel("Query Name")
-    plt.ylabel("Duration")
-    # Tilt labels if they are long
-    # plt.xticks(rotation=45, ha="right")
 
-    plt.tight_layout()
-    plt.savefig(output_path)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=color_cycle[i % len(color_cycle)]) for i in range(num_dbs)]
+    plt.legend(handles, db_labels, title="Legend", bbox_to_anchor=(1, 1))
+
+    plt.tight_layout(rect=[0, 0, 1, 1])
+    print(filepath)
+    plt.savefig(filepath)
     plt.close()
+
+
+
     
 def get_percentile_values(percentile, df_stats, aggregate=False):
 
@@ -294,5 +312,20 @@ def get_desc_from_test_id(test_id):
         return None  # or raise an error
     else:
         raise ValueError(f"Multiple descriptions found for test_id '{test_id}': {descs}")
+    
+
+def abbreviate_legend(desc, db_name):
+    """
+    Work around for the legends names being too long. change from 10-nodes-with-50-pods -> Memgraph, 10-nodes-with-50-pods -> Neo4j
+    To something like 10N or 10M.
+
+    Take the first few characters before the first -. i.e 10, 100, 250, 500, 750, 1000.
+    Then search for neo4j and memgraph in the string.
+    """
+    desc_prefix = desc.split('-')[0]
+    db_name_short = db_name[0].upper()
+
+    legend_name = f"{desc_prefix}{db_name_short}"
+    return legend_name
 
 # delete_from_csvs(["7OCRH"])

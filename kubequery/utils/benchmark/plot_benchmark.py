@@ -1,85 +1,112 @@
 import os
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from kubequery.utils.benchmark.helpers import get_desc_from_test_id, get_percentile_values, improved_plot_bar_chart, load_csvs, plot_boxplot, plot_multiple_line_chart
+from kubequery.utils.benchmark.helpers import abbreviate_legend, get_desc_from_test_id, get_percentile_values, improved_plot_bar_chart, improved_plot_boxplot, load_csvs, plot_multiple_line_chart
 
 IMAGE_DIR = "kubequery/static/images/"
 
-
-def plot_create_graph(test_ids, metric):
+def plot_create_graph(test_ids, metric="both"):
     """
-    Compare CPU/memory usage during create graph between 1->* tests.
+    Compare CPU and memory usage during graph generation for given test IDs.
+    Plots CPU and memory usage on the same plot for each test ID.
 
-    Loads the data, filters for each test, extracts start and end times from the
-    create graph queries, and then plots CPU/memory usage (using the same helper)
-    for each test, along with a bar chart comparing durations.
+    test_ids -> list of test IDs
+    metric -> CPU, MEM or BOTH
 
-    test_ids -> list of test id's
-    metric -> cpu_percent or mem_percent
+    Plot MEM AND CPU, or Both on one plot.
     """
+    
     csvs = load_csvs(real_stats=True, queries=True, throughput=False)
     df_real_stats = csvs[0]
     df_queries = csvs[1]
 
-    if metric not in ["cpu", "mem"]:
-        print("Invalid metric", metric)
+    if metric not in ["cpu", "mem", "both"]:
+        print(f"Invalid metric: {metric}")
         return False
-    
 
     x_values = []
     y_values = []
-    descriptions = []
+    legend_labels = []
+    colors = []
+    styles = []
+
     for test_id in test_ids:
-        # Filter for the current test_id
         df_queries_test = df_queries[df_queries["test_id"].str.strip() == test_id].copy()
 
-        # Locate the create graph query.
         create_graph_query = df_queries_test.loc[
             df_queries_test["query_name"].str.contains("create graph", case=False, na=False)
         ].head(1)
-        if create_graph_query.empty:
-            print("No 'create graph' query found, cannot graph.")
-            return False
 
-        # Extract start and end timestamps.
+        if create_graph_query.empty:
+            print(f"No 'create graph' query found for {test_id}, skipping.")
+            continue
+
         create_graph_query = create_graph_query.squeeze()
         start_ts = create_graph_query["start_ts"]
         end_ts = create_graph_query["end_ts"]
         db = create_graph_query["db_name"]
-
         desc = create_graph_query["desc"]
-        descriptions.append(f"{desc}: {db}")
 
-        # Filter real stats between start_ts and end_ts and compute elapsed time.
-        df_filtered = df_real_stats[(df_real_stats["timestamp"] >= start_ts) &
-                                    (df_real_stats["timestamp"] <= end_ts)].copy()
+        base_label = abbreviate_legend(desc, db)
+        color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        db_color = color_cycle[0] if "memgraph" in db.lower() else color_cycle[1]
+
+        df_filtered = df_real_stats[
+            (df_real_stats["timestamp"] >= start_ts) &
+            (df_real_stats["timestamp"] <= end_ts)
+        ].copy()
+
         df_filtered["elapsed_sec"] = (df_filtered["timestamp"] - start_ts).dt.total_seconds()
-        # Ensure the metric is numeric and apply smoothing (rolling average).
-        df_filtered[f"{metric}_percent"] = pd.to_numeric(df_filtered[f"{metric}_percent"], errors="coerce")
-        df_filtered[f"{metric}_percent_smooth"] = df_filtered[f"{metric}_percent"].rolling(window=5, center=True, min_periods=1).mean()
+        df_filtered["elapsed_min"] = df_filtered["elapsed_sec"] / 60
 
-        # Append the x and y values.
-        x_values.append(df_filtered["elapsed_sec"])
-        y_values.append(df_filtered[f"{metric}_percent_smooth"])
+        # Process CPU
+        df_filtered["cpu_percent"] = pd.to_numeric(df_filtered["cpu_percent"], errors="coerce")
+        df_filtered["cpu_percent_smooth"] = df_filtered["cpu_percent"].rolling(window=5, center=True, min_periods=1).mean()
 
-    # Define plot parameters.
-    title = f"Stats over time when creating graph for tests: {' | '.join(test_ids)}"
-    ylabel = f"{metric.upper()} Usage (%)"
-    legend_labels = descriptions
+        # Process MEM
+        df_filtered["mem_percent"] = pd.to_numeric(df_filtered["mem_percent"], errors="coerce")
+        df_filtered["mem_percent_smooth"] = df_filtered["mem_percent"].rolling(window=5, center=True, min_periods=1).mean()
+
+        if metric in ["cpu", "both"]:
+            x_values.append(df_filtered["elapsed_min"])
+            y_values.append(df_filtered["cpu_percent_smooth"])
+            legend_labels.append(f"{base_label} CPU")
+            colors.append(db_color)
+            styles.append('-')
+
+        if metric in ["mem", "both"]:
+            x_values.append(df_filtered["elapsed_min"])
+            y_values.append(df_filtered["mem_percent_smooth"])
+            legend_labels.append(f"{base_label} MEM")
+            colors.append(db_color)
+            styles.append('-')
+
+    # Set plot title and file name
+    if metric == "both":
+        title = "CPU and Memory Usage During Graph Generation"
+        file_suffix = "cpu-mem"
+    else:
+        title = f"{metric.upper()} Usage During Graph Generation"
+        file_suffix = metric
+
     filename = os.path.join(
         IMAGE_DIR,
-        f"Compare-{'_'.join(test_ids)}-{metric}.png"
+        f"Compare-{'_'.join(test_ids)}-{file_suffix}.png"
     )
 
-    # Create the plot.
+    # Plot
     plot_multiple_line_chart(
         filepath=filename,
         title=title,
-        xlabel="Elapsed Time (seconds)",
-        ylabel=ylabel,
+        xlabel="Elapsed Time (minutes)",
+        ylabel="Usage (%)",
         legend_labels=legend_labels,
         x_values=x_values,
-        y_values=y_values
+        y_values=y_values,
+        colors=colors,
+        styles=styles,
+        downsample_step=100
     )
     return True
 
@@ -193,6 +220,7 @@ def analyse_queries(test_ids, queries, hop=3, aggregate_hops=False):
                         "Sum of P75 Latency (s)": 0.0,
                         "Sum of P95 Latency (s)": 0.0,
                         "Sum of P99 Latency (s)": 0.0,
+                        "Num Queries": 0
                     }
 
                 aggregator = aggregated_by_hops[num_hops_val]
@@ -206,6 +234,7 @@ def analyse_queries(test_ids, queries, hop=3, aggregate_hops=False):
                 aggregator["Sum of P75 Latency (s)"] += stat["P75 Latency (s)"]
                 aggregator["Sum of P95 Latency (s)"] += stat["P95 Latency (s)"]
                 aggregator["Sum of P99 Latency (s)"] += stat["P99 Latency (s)"]
+                aggregator["Num Queries"] += 1
 
             final_aggregated_stats = list(aggregated_by_hops.values())
             df_result = pd.DataFrame(final_aggregated_stats)
@@ -233,7 +262,8 @@ def plot_query_latency(analysis_data, percentile, aggregate=False):
         test_ids.append(test_id)
 
         desc = get_desc_from_test_id(test_id)
-        legend_values.append(f"{desc} -> {db_name}")
+        legend_name = abbreviate_legend(desc, db_name)
+        legend_values.append(legend_name)
 
     if aggregate:
         categories = df_stats["Num Hops"]
@@ -280,12 +310,15 @@ def plot_query_throughput(analysis_data):
         db_name = df_stats["Database Name"].iloc[0]
         test_id = df_stats["Test ID"].iloc[0]
         test_ids.append(test_id)
-        legend_values.append(f"{test_id} -> {db_name}")
+        desc = get_desc_from_test_id(test_id)
+
+        legend_name = abbreviate_legend(desc, db_name)
+        legend_values.append(legend_name)
     
     # Use the Query Name column as categories; assume all tests share the same queries.
     categories = df_stats["Query Name"].tolist()
 
-    title = "Throughput Comparison"
+    title = "Throughput Performance of K-Hop Queries"
 
     filepath = os.path.join(
         IMAGE_DIR,
@@ -295,7 +328,7 @@ def plot_query_throughput(analysis_data):
     improved_plot_bar_chart(
         filepath, 
         title, 
-        "Total Queries Executed (Throughput)",  # y-axis label
+        "Total Queries Executed",  # y-axis label
         data_values_list,       # List of lists: each inner list is one bar group (one test)
         legend_values,          # Legend labels (e.g. "TestID -> DB Name")
         categories,             # x-axis labels (query names)
@@ -346,10 +379,11 @@ def plot_kafka_cg_duration(test_ids):
         cg_duration = float(cg_query["duration"])
         desc = kafka_query["desc"]
         kafka_durations.append([kafka_duration])  # Put in a list so each test is one group
-        cg_durations.append([cg_duration])  # Put in a list so each test is one group
+        cg_durations.append([int(cg_duration) / 60])  # Put in a list so each test is one group
         print(db_name, desc, cg_duration)
 
-        legend_labels.append(f"{desc} -> {db_name}")
+        legend_name = abbreviate_legend(desc, db_name)
+        legend_labels.append(legend_name)
 
     # If no data was found, bail
     if not kafka_durations:
@@ -379,75 +413,84 @@ def plot_kafka_cg_duration(test_ids):
         values=kafka_durations,          # List of lists, each sub-list is [duration] for that test
         xlabels=legend_labels,     # e.g. "3mCk8 -> memgraph", "7LP2z -> neo4j"
         categories=["Push to kafka"],     # single x-axis label
-        rotation=True,
+        rotation=False,
+        logscale=False,
         figure_size=(8, 6)
     )
     improved_plot_bar_chart(
         filepath=cg_filename,
         title="Create Graph Duration Comparison",
-        ylabel="Duration (seconds)",
+        ylabel="Duration (minutes)",
         values=cg_durations,          # List of lists, each sub-list is [duration] for that test
         xlabels=legend_labels,     # e.g. "3mCk8 -> memgraph", "7LP2z -> neo4j"
         categories=["Create graph"],     # single x-axis label
-        rotation=True,
+        rotation=False,
+        logscale=False,
         figure_size=(8, 6)
     )
     return True
 
 def queries_boxplot(test_ids, queries):
-    # Load your CSV data
+    """
+    Generates a side-by-side boxplot comparing query durations across databases/test IDs on the same plot.
+    Dynamically handles the queries input for X-axis labels.
+    """
+
     csvs = load_csvs(real_stats=False, queries=True, throughput=False)
-    df_all = csvs[0]  # original dataframe with all queries
+    df_all = csvs[0]
+
+    data_groups = []  # outer: DB/test_id, inner: queries, inner-most: durations
+    db_labels = []    # labels for legend
 
     for test_id in test_ids:
-        print(f"Processing test_id: {test_id}")
-        # Filter the original dataframe for the current test_id
-        df_queries = df_all[df_all["test_id"] == test_id].copy()
-        
-        if df_queries.empty:
-            print(f"No queries found for test_id {test_id}")
+        df_test = df_all[df_all["test_id"] == test_id].copy()
+        if df_test.empty:
+            print(f"No data for test_id {test_id}")
             continue
 
-        db_name = df_queries['db_name'].iloc[0]
+        db_name = df_test["db_name"].iloc[0]
+        desc = get_desc_from_test_id(test_id=test_id)
+        legend_name = abbreviate_legend(desc, db_name)
+        db_labels.append(legend_name)
 
-        # Collect data and labels for all queries that match
-        boxplot_data = []
-        boxplot_labels = []
-        
+        query_data = []
         for query_name in queries:
-            # Filter rows whose query_name starts with the given prefix, making a copy so later modifications don't affect the original
-            df_query_subset = df_queries[
-                df_queries["query_name"].str.startswith(query_name, na=False)
+            df_query = df_test[
+                df_test["query_name"].str.startswith(query_name, na=False)
             ].copy()
 
-            if df_query_subset.empty:
-                print(f"No queries found for test_id={test_id} and query_name prefix '{query_name}'")
+            if df_query.empty:
+                print(f"No queries for '{query_name}' in test_id {test_id}")
+                query_data.append([])
                 continue
 
-            # Convert duration to numeric (this is done on a copy, so it's safe)
-            df_query_subset["duration"] = pd.to_numeric(df_query_subset["duration"], errors="coerce")
-            
-            # Drop NaNs and collect durations
-            durations = df_query_subset["duration"].dropna().tolist()
-            if not durations:
-                print(f"All durations are NaN or invalid for '{query_name}'")
-                continue
+            df_query["duration"] = pd.to_numeric(df_query["duration"], errors="coerce")
+            durations = df_query["duration"].dropna().tolist()
+            query_data.append(durations)
 
-            # Append data and label for the current query
-            boxplot_data.append(durations)
-            boxplot_labels.append(query_name)
+        data_groups.append(query_data)
 
-        # Only plot if we have some valid data for at least one query
-        if boxplot_data:
-            output_path = os.path.join(IMAGE_DIR, f"queries_boxplot_{test_id}.png")
-            plot_boxplot(
-                data=boxplot_data,
-                labels=boxplot_labels,
-                title=f"Query Durations for Test {test_id} - '{db_name}'",
-                output_path=output_path
-            )
-        else:
-            print(f"No valid query durations found for test_id {test_id}")
+    if not data_groups:
+        print("No valid data to plot.")
+        return
+
+    # Build query_labels dynamically from queries (or map to short names if you'd like)
+    query_labels = queries  
+
+    test_ids_combined = "_".join(test_ids)
+    output_path = os.path.join(IMAGE_DIR, f"queries_boxplot_{test_ids_combined}.png")
+    improved_plot_boxplot(
+        filepath=output_path,
+        title="Latency Boxplot for Different Queries",
+        ylabel="Duration (ms)",
+        data_groups=data_groups,
+        db_labels=db_labels,
+        query_labels=query_labels,
+        figure_size=(14, 6)
+    )
+
+
+
 
 
 def plot_throughput_query_resource_usage_windowed(test_ids, target_query_name, metric="cpu"):
@@ -491,10 +534,10 @@ def plot_throughput_query_resource_usage_windowed(test_ids, target_query_name, m
         start_ts = df_throughput_test.loc[idx - 1, "timestamp"]
         end_ts = df_throughput_test.loc[idx + 1, "timestamp"]
 
-        db = df_throughput_test.loc[idx, "db_name"]
+        db_name = df_throughput_test.loc[idx, "db_name"]
         desc = df_throughput_test.loc[idx, "desc"]
-        legend_labels.append(f"{desc} -> {db}")
-
+        legend_name = abbreviate_legend(desc, db_name)
+        legend_labels.append(legend_name)
         df_filtered = df_real_stats[
             (df_real_stats["timestamp"] >= start_ts) &
             (df_real_stats["timestamp"] <= end_ts)

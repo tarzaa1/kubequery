@@ -156,9 +156,11 @@ def wait_for_kubegrapher(kafka_topic, auth, db_name):
         else:
             # No new messages within the timeout period.
             print("No new messages for 1 minute, continuing...")
+            process.kill()
             return "No messages after 1 minute"
 
     print("Broken free")
+    process.kill()
     return "All nodes completed"
 
 
@@ -233,6 +235,7 @@ def restart_kafka():
 
 
 def restart_database(db_name="neo4j"):
+    print("Test")
     """
     Remove any existing database container and start the specified one for benchmarking.
 
@@ -291,11 +294,11 @@ def run_sequence(test_id, total_num_pods, num_nodes, num_pods, description, auth
     """
     Runs the sequence:
       1. Launch kubeInsights and wait until its target log line is detected.
-         (kubeInsights continues to run in the background.)
-      2. Launch kubeGrapher and wait until its target log line is detected.
+      2. KubeInsights process is terminated. (kubeInsights could theoretically be adjusted to continue run in the background.)
+      3. Launch kubeGrapher and wait until its target log line is detected.
          If kubeGrapher fails (i.e. an exception is raised), retry up to 3 total attempts.
          A result of "No messages after 1 minute" is considered a success.
-      3. Once kubeGrapher is finished, terminate the kubeInsights process.
+      4. Once kubeGrapher completes its execution, the process is terminated.
     """
     yield "data: Waiting....\n\n"
     kafka_topic = generate_kafka_topic()
@@ -308,6 +311,12 @@ def run_sequence(test_id, total_num_pods, num_nodes, num_pods, description, auth
     yield "data: Pushing to kafka...\n\n"
     # Launch kubeInsights and wait for its target output.
     kubeinsights_proc = wait_for_kubeinsights(kafka_topic)  # Returns the process once target is detected.
+
+
+    # 2. Launch kubeInsights in background and wait for its target log line.
+
+    kubeinsights_proc.terminate()
+
     duration = time.perf_counter() - start_perf
     end_ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     export_query(test_id, "Push to kafka", duration, start_ts, end_ts,
@@ -315,7 +324,7 @@ def run_sequence(test_id, total_num_pods, num_nodes, num_pods, description, auth
 
     yield f"data: {json.dumps({'type': 'toggleDiv', 'div': 'dash'})}\n\n"
 
-    # 2. Launch kubeGrapher and wait for its target output with retry attempts.
+    # 3/4. Launch kubeGrapher and wait for its target output with retry attempts.
     max_retries = 3
     attempt = 0
     success = False
@@ -353,10 +362,12 @@ def run_sequence(test_id, total_num_pods, num_nodes, num_pods, description, auth
     export_query(test_id, "Create graph", attempt_duration, attempt_start_ts, attempt_end_ts,
                  1, num_nodes, num_pods, description, 0, db_name)
 
-    # 3. Terminate the kubeInsights process.
-    print("\nKubeGrapher finished. Terminating kubeInsights process.")
-    kubeinsights_proc.terminate()
+    # # 3. Terminate the kubeInsights process.
+    # print("\nKubeGrapher finished. Terminating kubeInsights process.")
+    # kubeinsights_proc.terminate()
     print("\nAll processes have completed their initial output signals. Sequence complete.")
     yield "data: Sequence complete.\n\n"
 
 
+
+# restart_database("memgraph")
