@@ -1,6 +1,30 @@
 
 import re
 
+def get_node_count(tx):
+    query = """
+    MATCH (n)
+    RETURN count(n) AS node_count
+    """
+    result = tx.run(query)
+    try:
+        record = result.single()
+        return record["node_count"]
+    except Exception as e:
+        raise
+    
+def get_relationship_count(tx):
+    query = """
+    MATCH ()-[r]->()
+    RETURN count(r) AS rel_count
+    """
+    result = tx.run(query)
+    try:
+        record = result.single()
+        return record["rel_count"]
+    except Exception as e:
+        raise
+
 def query_template(template):
     def decorator(func):
         func.query_template = template.strip()

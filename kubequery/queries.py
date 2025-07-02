@@ -265,7 +265,7 @@ def get_replicaset(tx):
     try:
         for record in result:
             record_data = record.data()
-            rs_list.append(record_data.get('replicasets')) # Make sure this is correct
+            rs_list.append(record_data.get('r'))
     except AttributeError:
         pass
     except Exception as e:

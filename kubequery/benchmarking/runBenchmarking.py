@@ -226,10 +226,10 @@ def restart_kafka():
         
         # Bring up the containers in detached mode.
         print("Kubeinsights 'docker-compose up -d'...")
-        yield "data: Starting up new database...\n\n"
+        yield "data: Starting up Kafka instance..\n\n"
         subprocess.run(["docker-compose", "up", "-d"], cwd=kubeInsights_dir, check=True)
 
-        print("Database and kafka restarted successfully.")
+        print("Kafka restarted successfully.")
     except subprocess.CalledProcessError as e:
         print("Error during Docker Compose operations:", e)
 

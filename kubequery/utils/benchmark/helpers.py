@@ -119,6 +119,8 @@ def plot_multiple_line_chart(
 
     plt.figure(figsize=figure_size)
 
+    # Temporarily hard coded.
+    linestyles = ["-", "-", "--", "--", "-", "-", "--", "--", "-", "-", "--", "--"]
     for i, (x, y) in enumerate(zip(x_values, y_values)):
         label = legend_labels[i] if i < len(legend_labels) else None
         col = colors[i] if colors is not None and i < len(colors) else None
@@ -128,17 +130,17 @@ def plot_multiple_line_chart(
         x_ds = x[::downsample_step]
         y_ds = y[::downsample_step]
 
-        plt.plot(x_ds, y_ds, linestyle=style, color=col, label=label)
+        plt.plot(x_ds, y_ds, linestyle=linestyles[i], color=col, label=label)
 
     if grid:
         plt.grid(True)
 
     plt.xlabel(xlabel,)
     plt.ylabel(ylabel,)
-    plt.title(title,)
+    # plt.title(title,)
 
 
-    plt.legend(loc="center left", bbox_to_anchor=(1, 0.9), title="Legend")
+    plt.legend(loc="lower center",ncol=len(legend_labels),bbox_to_anchor=(0.5, 1.02),  title="Legend")
 
     plt.tight_layout(rect=[0, 0, 1, 1])
 
@@ -190,7 +192,7 @@ def improved_plot_bar_chart(
         plt.xticks(x, categories)
 
     # Place the legend outside the plot area
-    plt.legend(loc="center left", bbox_to_anchor=(1, .5), title="Legend")
+    plt.legend(loc="lower center", ncol=5,bbox_to_anchor=(0.5, 1.02), title="Legend")
     plt.tight_layout(rect=[0, 0, 1, 1])  # Leave space on right for legend
 
     plt.savefig(filepath)
@@ -325,7 +327,7 @@ def abbreviate_legend(desc, db_name):
     desc_prefix = desc.split('-')[0]
     db_name_short = db_name[0].upper()
 
-    legend_name = f"{desc_prefix}{db_name_short}"
+    legend_name = f"{db_name_short}{desc_prefix}"
     return legend_name
 
 # delete_from_csvs(["7OCRH"])

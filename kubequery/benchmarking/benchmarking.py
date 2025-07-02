@@ -187,3 +187,20 @@ def benchmark(neo4j, test_id, cluster_id, node_ids, replicaset_ids, pod_ids, num
     neo4j.execute_write(delete_all)
 
     return user_queries
+
+def get_node_count_temp():
+    from kubequery.utils.graph import Neo4j
+
+    neo4j = Neo4j()  # Instantiate database class.
+    from kubequery.conf import (NEO4J_URI,NEO4J_AUTH,MEMGRAPH_AUTH,NEO4J_AUTH_STRING, MEMGRAPH_AUTH_STRING)
+
+    AUTH_STRING = MEMGRAPH_AUTH_STRING
+    AUTH = MEMGRAPH_AUTH
+
+    neo4j.connect(NEO4J_URI, AUTH)
+
+    neo4j.execute_read(get_node_count)
+    neo4j.execute_read(get_relationship_count)
+
+
+get_node_count_temp()
