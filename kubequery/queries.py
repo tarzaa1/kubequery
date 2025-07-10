@@ -172,6 +172,14 @@ def subgraph(tx):
     edges = []
     ids = []
 
+    result = get_nodes(tx, 'Cluster')
+    for record in result:
+        node = record['node']
+        if node.element_id not in ids:
+            nodes.append(
+                {'id': node.element_id, 'name': node['id'], 'type': 'Cluster'})
+            ids.append(node.element_id)
+
     result = get_nodes(tx, 'K8sNode')
     for record in result:
         node = record['node']
@@ -203,6 +211,14 @@ def subgraph(tx):
             nodes.append(
                 {'id': node.element_id, 'name': node['name'], 'type': 'Image'})
             ids.append(node.element_id)
+        r = record['r']
+        if r.element_id not in ids:
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
+            ids.append(r.element_id)
+
+    result = get_edges(tx, "K8sNode", "Cluster")
+    for record in result:
         r = record['r']
         if r.element_id not in ids:
             edges.append({'id': r.element_id, 'start': r.start_node.element_id,
