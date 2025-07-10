@@ -17,5 +17,11 @@
 <body>
 	<div id="graph"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+      setTimeout(() => {
+        location.reload();
+      }, 2000); // 2 seconds
+    </script>
 </body>
 </html>
