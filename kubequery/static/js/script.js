@@ -24,6 +24,9 @@ window.addEventListener('load', () => {
                 if (nodes[i].type == "K8sNode") {
                     const node = orb.data.getNodeById(nodes[i].id);
                     node.properties.color = "#FF0000";
+                } else if (nodes[i].type == "Cluster") {
+                    const node = orb.data.getNodeById(nodes[i].id);
+                    node.properties.color = "#33ffa2";
                 } else if (nodes[i].type == "Pod") {
                     const node = orb.data.getNodeById(nodes[i].id);
                     node.properties.color = "#00FF00";
