@@ -1,31 +1,30 @@
-from flask import Flask, render_template, jsonify, abort, send_from_directory
-from kubequery.utils.graph import Neo4j
-from kubequery.queries import *
+from flask import Flask, abort, jsonify, render_template, send_from_directory
+from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 
+from kubequery.queries import *
+from kubequery.utils.graph import Neo4j
+
 app = Flask(__name__)
+CORS(app)
 neo4j = Neo4j()
 
 # Swagger UI
-SWAGGER_URL = '/swagger'  # URL for accessing Swagger UI
-API_URL = '/static/swagger.yaml'
+SWAGGER_URL = "/swagger"  # URL for accessing Swagger UI
+API_URL = "/static/swagger.yaml"
 
 swaggerui_blueprint = get_swaggerui_blueprint(
-    SWAGGER_URL,          # Swagger UI endpoint
-    API_URL,              # Swagger spec file
-    config={
-        'app_name': "KubeQuery API"
-    }
+    SWAGGER_URL, API_URL, config={"app_name": "KubeQuery API"}  # Swagger UI endpoint  # Swagger spec file
 )
 # Register the swagger blueprint
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 current_subgraph = None
 
-@app.route("/", methods=['GET'])
+@app.route("/", methods=["GET"])
 def index():
     neo4j.execute_read(subgraph)
-    return render_template('index.html')
+    return render_template("index.html")
 
 @app.route("/graph-status")
 def graph_status():
@@ -57,7 +56,8 @@ def list_clusters():
         abort(404, description=f"No cluster found")
     return jsonify(clusters), 200
 
-@app.route("/stats", methods=['GET'])
+
+@app.route("/stats", methods=["GET"])
 def list_stats():
     try:
         stats = neo4j.execute_read(distinct_labels)
@@ -65,7 +65,8 @@ def list_stats():
         abort(500, description=f"An unexpected error occurred: {str(e)}")
     return jsonify(stats), 200
 
-@app.route("/clusters/<string:clusterId>/nodes", methods=['GET'])
+
+@app.route("/clusters/<string:clusterId>/nodes", methods=["GET"])
 def list_nodes(clusterId):
     if not clusterId:
         abort(400, description="Missing clusterId")
@@ -77,7 +78,8 @@ def list_nodes(clusterId):
         abort(404, description=f"No nodes found for clusterId {clusterId}")
     return jsonify(nodes), 200
 
-@app.route("/clusters/<string:clusterId>/pods", methods=['GET'])
+
+@app.route("/clusters/<string:clusterId>/pods", methods=["GET"])
 def list_pods_on_cluster(clusterId):
     if not clusterId:
         abort(400, description="Missing clusterId")
@@ -88,6 +90,7 @@ def list_pods_on_cluster(clusterId):
     if not pods:
         abort(404, description=f"No pods found for clusterId {clusterId}")
     return jsonify(pods), 200
+
 
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/pods")
 def list_pods_on_node(clusterId, nodeId):
@@ -101,6 +104,7 @@ def list_pods_on_node(clusterId, nodeId):
         abort(404, description=f"No pods matched")
     return jsonify(pods), 200
 
+
 @app.route("/clusters/<string:clusterId>/<string:nodeId>/resources")
 def list_allocated_resources_on_node(clusterId, nodeId):
     if not clusterId or not nodeId:
@@ -112,6 +116,7 @@ def list_allocated_resources_on_node(clusterId, nodeId):
     if not resources:
         abort(404, description=f"No resources available on node")
     return jsonify(resources), 200
+
 
 @app.route("/clusters/<string:clusterId>/pods/resources")
 def list_pods_usage_on_cluster(clusterId):
@@ -125,7 +130,8 @@ def list_pods_usage_on_cluster(clusterId):
         abort(404, description=f"No resources available")
     return jsonify(resources), 200
 
+
 # Serve the swagger.yaml file in the static directory
 @app.route("/static/swagger.yaml")
 def swagger_yaml():
-    return send_from_directory('static', 'swagger.yaml')
+    return send_from_directory("static", "swagger.yaml")
