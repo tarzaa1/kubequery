@@ -1,7 +1,6 @@
 import json
 import re
 
-
 def count(tx, type):
     query = f"""
         MATCH (nodes:{type})
@@ -165,9 +164,7 @@ def pods_info_by_cluster(tx, cluster_id: str):
         raise
     return pod_lst
 
-
-def subgraph(tx):
-
+def get_subgraph(tx):
     nodes = []
     edges = []
     ids = []
@@ -202,6 +199,14 @@ def subgraph(tx):
         if node.element_id not in ids:
             nodes.append(
                 {'id': node.element_id, 'name': node['name'], 'type': 'Container'})
+            ids.append(node.element_id)
+
+    result = get_nodes(tx, 'Service')
+    for record in result:
+        node = record['node']
+        if node.element_id not in ids:
+            nodes.append(
+                {'id': node.element_id, 'name': node['id'], 'type': 'Service'})
             ids.append(node.element_id)
 
     result = get_images(tx)
@@ -241,6 +246,14 @@ def subgraph(tx):
                          'end': r.end_node.element_id, 'label': r.type})
             ids.append(r.element_id)
 
+    result = get_edges(tx, "Service", "Pod")
+    for record in result:
+        r = record['r']
+        if r.element_id not in ids:
+            edges.append({'id': r.element_id, 'start': r.start_node.element_id,
+                         'end': r.end_node.element_id, 'label': r.type})
+            ids.append(r.element_id)
+
     result = get_edges(tx, "Container", "Image")
     for record in result:
         r = record['r']
@@ -250,9 +263,12 @@ def subgraph(tx):
             ids.append(r.element_id)
 
     subgraph = {'nodes': nodes, 'edges': edges}
+    return subgraph
+
+def subgraph(tx):
+    subgraph = get_subgraph(tx)
     with open('kubequery/static/data/subgraph.json', 'w') as fp:
         json.dump(subgraph, fp, indent=4)
-
 
 def get_nodes(tx, type):
     query = f"""
