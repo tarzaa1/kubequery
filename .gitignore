@@ -164,4 +164,4 @@ Footer
 
 
 
-/kubequery/static/data/*
+/kubequery/static/data/subgraph.json
