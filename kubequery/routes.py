@@ -20,11 +20,32 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 # Register the swagger blueprint
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
+current_subgraph = None
 
 @app.route("/", methods=['GET'])
 def index():
     neo4j.execute_read(subgraph)
     return render_template('index.html')
+
+@app.route("/graph-status")
+def graph_status():
+    global current_subgraph 
+    try:
+        subgraph = neo4j.execute_read(get_subgraph)
+        subgraph_json = json.dumps(subgraph, sort_keys=True)
+
+        if current_subgraph is None:
+            current_subgraph = subgraph_json
+            return jsonify({"has_changed": False})
+
+        if subgraph_json != current_subgraph:
+            current_subgraph = subgraph_json
+            return jsonify({"has_changed": True})
+        else:
+            return jsonify({"has_changed": False})
+    except Exception as e:
+        print(f"[graph-status error] {e}")
+        return jsonify({"has_changed": False})
 
 @app.route("/clusters", methods=['GET'])
 def list_clusters():
